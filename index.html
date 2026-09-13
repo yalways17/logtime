@@ -78,6 +78,7 @@
             --app-pad-t: 20px;
             --app-pad-b: 28px;
             --ring-size: 220px;
+            --grid-max: 420px;
             --grid-gap: 3px;
             --grid-cols: 20;
             --grid-rows: 10;
@@ -423,9 +424,11 @@
             background: var(--blue-pale);
         }
         .main-visual {
-            /* flex: 1 之外还要 min-height: 0，否则它的 min-height: 360px 会顶住不让收缩，
-               在矮屏幕（手机横屏）上就会把页面撑出视口 */
-            flex: 1 1 auto;
+            /* flex-basis 用 0 而不是 auto：主体区高度只由剩余空间决定，不随里面的
+               圆环/方格大小变化。否则 --visual-h 会形成反馈回路
+               （内容变大 → 主体区变高 → 可用高度变大 → 内容更大）。
+               同时 min-height: 0 保证矮屏幕（手机横屏）下能收缩，不会把页面撑出视口。 */
+            flex: 1 1 0%;
             min-height: 0;
             display: flex;
             flex-direction: column;
@@ -476,13 +479,12 @@
         }
         .ring-container {
             position: relative;
-            width: var(--ring-size);
-            /* 跟着可用空间自动缩：aspect-ratio 保证始终是正方形，
-               max-width/height 保证再矮的屏幕也塞得下，不用逐档写 vh 估算 */
+            /* 同样只用宽度约束：aspect-ratio 会把高度带出来，宽度被压住就等比缩小。
+               纯 CSS 用 max-height 压高度的话，宽度不会跟着缩，圆形会被压成椭圆。 */
+            width: min(var(--ring-size), var(--visual-h, 60vh));
             aspect-ratio: 1 / 1;
             height: auto;
             max-width: 100%;
-            max-height: 100%;
             flex-shrink: 1;
         }
         #ringCanvas {
@@ -534,13 +536,22 @@
         }
         .grid-container {
             display: none;
-            width: 100%;
-            max-width: 420px;
+            /* 只用"宽度"约束尺寸，高度交给 aspect-ratio 带出来 ——
+               宽度一旦被压住，整体等比缩小，格子保持正方形。
+               反过来用 max-height 压高度是行不通的：高度被压了宽度不会跟着缩，
+               方格会变成压扁的矩形（实测横屏 740x360 下比例从 2.00 变成 2.29，
+               格子也不再是正方形）。而且百分比 max-height 在旋转后有时不重新解析，
+               靠切换显示方式强制重排才会恢复 —— 这正是"切到圆环再切回来就正常"的原因。
+               所以这里用 JS 量出来的可用高度（--visual-h）换算成宽度上限，完全不用百分比。 */
+            width: min(var(--grid-max, 420px), calc(var(--visual-h, 60vh) * 2));
             aspect-ratio: 20 / 10;
-            /* 同样按可用高度收：方格是 2:1，矮屏幕上靠 max-height 缩回去 */
-            max-height: 100%;
             height: auto;
-            padding: 4px 0;
+            max-width: 100%;
+            /* 竖向间距用 margin 而不是 padding：aspect-ratio 到底算在内容盒还是边框盒上
+               各浏览器/各写法并不一致，padding 会让实际比例变成 1.92 而不是 2.00。
+               margin 不参与 aspect-ratio，比例就确定了。 */
+            padding: 0;
+            margin: 4px 0;
             flex-shrink: 1;
             transition: opacity var(--dur-modal) var(--ease);
             position: relative;
@@ -1632,6 +1643,7 @@
                 --app-pad-x: 16px;
                 --app-pad-b: 24px;
                 --ring-size: 180px;
+                --grid-max: 320px;
                 --grid-gap: 2px;
             }
             .task-name-display,
@@ -1693,9 +1705,6 @@
             .mode-card {
                 padding: 12px 14px 13px;
             }
-            .grid-container {
-                max-width: 320px;
-            }
             .real-time-display {
                 font-size: 0.7rem;
             }
@@ -1732,6 +1741,7 @@
         @media (max-width: 380px) {
             :root {
                 --ring-size: 150px;
+                --grid-max: 260px;
                 --grid-gap: 1.5px;
             }
             .percent-tag.completed-centered {
@@ -1740,9 +1750,6 @@
             .task-name-display,
             .task-name-input {
                 font-size: 1.05rem;
-            }
-            .grid-container {
-                max-width: 260px;
             }
             :root {
                 --app-pad-t: 12px;
@@ -1761,13 +1768,11 @@
         @media (min-width: 600px) {
             :root {
                 --ring-size: 260px;
+                --grid-max: 480px;
             }
             .task-name-display,
             .task-name-input {
                 font-size: 1.55rem;
-            }
-            .grid-container {
-                max-width: 480px;
             }
             .percent-tag {
                 font-size: 0.8rem;
@@ -1782,6 +1787,7 @@
             /* 版心令牌必须挂在 :root 上：底部工具栏在 #app 之外，也要拿到同一组值 */
             :root {
                 --ring-size: 300px;
+                --grid-max: 540px;
                 --app-max: 640px;
                 --app-pad-t: 32px;
                 --app-pad-x: 28px;
@@ -1793,9 +1799,6 @@
                 font-size: 1.7rem;
                 letter-spacing: -0.024em;
                 line-height: 1.18;
-            }
-            .grid-container {
-                max-width: 540px;
             }
             .percent-tag {
                 font-size: 0.85rem;
@@ -1814,6 +1817,7 @@
                 --app-pad-t: 10px;
                 --app-pad-b: 12px;
                 --ring-size: 240px;
+                --grid-max: 480px;
             }
             #app.has-bottom-bar {
                 --app-pad-b: 74px;
@@ -3665,11 +3669,23 @@
                 return null;
             }
             function rememberHeroRect() {
+                syncVisualHeight();
                 const el = heroEl();
                 settledHeroRect = el ? el.getBoundingClientRect() : null;
             }
             function prefersReducedMotion() {
                 return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+            }
+            // 把主体区真正的可用高度量出来交给 CSS（--visual-h）。
+            // 圆环与方格的尺寸都以它为上限：用 px 而不是百分比，
+            // 因为百分比 max-height 在旋转后有时不重新解析，而且压高度不会带回宽度
+            //（方格会被压扁、圆环会变椭圆）。宽度约束则能正确带动 aspect-ratio。
+            function syncVisualHeight() {
+                const v = dom.mainVisual;
+                if (!v) return;
+                const cs = getComputedStyle(v);
+                const h = v.clientHeight - parseFloat(cs.paddingTop || 0) - parseFloat(cs.paddingBottom || 0);
+                if (h > 0) document.documentElement.style.setProperty('--visual-h', Math.round(h) + 'px');
             }
             function flipHero(from) {
                 const el = heroEl();
