@@ -2205,7 +2205,7 @@
                 </div>
             </div>
 
-            <div class="modal-version">v.1.3.3</div>
+            <div class="modal-version">v.1.3.4</div>
 
             <div class="modal-close">
                 <button id="infoCloseBtn">关闭</button>
@@ -2828,6 +2828,47 @@
                 updateBottomControls();
             }
 
+            // ===== 屏幕常亮（Screen Wake Lock）=====
+            // 计时过程中不允许系统息屏 —— 计时器类应用的基本预期。
+            // 三个必须处理的细节：
+            //   ① 需要安全上下文（https / localhost），不支持时静默降级，绝不影响计时
+            //   ② 页面切到后台时浏览器会自行释放锁，回到前台必须重新申请
+            //   ③ 不在计时就主动释放，否则白耗电
+            let wakeLock = null;
+            let wakeLockWanted = false;
+
+            function updateWakeLock() {
+                // 只在"任务正在进行"时保持常亮：没有任务、已暂停、已完成都释放
+                wakeLockWanted = state.totalDuration > 0 && !state.isPaused && !state.isCompleted;
+                if (wakeLockWanted) requestWakeLock();
+                else releaseWakeLock();
+            }
+            function requestWakeLock() {
+                if (wakeLock) return;
+                if (!navigator.wakeLock || typeof navigator.wakeLock.request !== 'function') return;
+                if (document.visibilityState !== 'visible') return;
+                navigator.wakeLock.request('screen').then(function(sentinel) {
+                    // 申请期间状态可能已经变了（例如已经暂停），那就立刻还回去
+                    if (!wakeLockWanted) {
+                        try { sentinel.release(); } catch (e) {}
+                        return;
+                    }
+                    wakeLock = sentinel;
+                    sentinel.addEventListener('release', function() {
+                        // 切后台时系统会自行释放，这里同步状态
+                        wakeLock = null;
+                    });
+                }).catch(function(e) {
+                    wakeLock = null;
+                    console.warn('LogTime: 屏幕常亮申请失败（不影响计时）', e && e.message);
+                });
+            }
+            function releaseWakeLock() {
+                if (!wakeLock) return;
+                try { wakeLock.release(); } catch (e) { /* ignore */ }
+                wakeLock = null;
+            }
+
             function updateBottomControls() {
                 const shouldShow = state.totalDuration > 0;
                 if (dom.bottomControls.classList.contains('bar-hidden') === shouldShow) {
@@ -2835,6 +2876,8 @@
                     // 工具栏通栏悬浮在底部，出现时正文列要给它让出高度
                     dom.app.classList.toggle('has-bottom-bar', shouldShow);
                 }
+                // 放在守卫之外：这一条要跟着状态走，且必须每条状态切换路径都覆盖到
+                updateWakeLock();
             }
 
             function formatDuration(s) {
@@ -3875,6 +3918,12 @@
                     if (confirm('确定要重置当前任务吗？所有进度将丢失。')) {
                         resetTask();
                     }
+                });
+
+                // ---- 屏幕常亮：回到前台且仍在计时就重新申请 ----
+                document.addEventListener('visibilitychange', function() {
+                    if (document.visibilityState === 'visible') updateWakeLock();
+                    else wakeLock = null;   // 系统在切后台时已自动释放
                 });
 
                 // ---- 窗口 resize / 横竖屏切换 ----
