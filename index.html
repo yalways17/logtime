@@ -5,13 +5,17 @@
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
     <link rel="manifest" href="./site.webmanifest">
-    <!-- 浏览器自身的 UI（地址栏 / 状态栏）取色跟页面背景一致，
-         否则手机竖屏最上端会出现一条和页面不搭的色带。
-         之前写死成 #007AFF（亮蓝），和深色页面放在一起非常跳。 -->
+    <!-- 浏览器自身的 UI（地址栏 / 状态栏）取色跟页面背景一致 -->
     <meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#0c0f17" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+    <!-- viewport-fit=cover 是必须的：
+         不写它的话，iOS 会把页面限制在"安全区"内排版，横屏时刘海两侧那两条
+         根本不属于布局视口，浏览器拿根元素的背景色去填 —— 深色模式下就是两条纯黑。
+         position: fixed; inset: 0 的背景层只能在布局视口内绘制，永远够不到那里，
+         所以靠调渐变是修不好的。加上它之后页面铺满整屏，
+         再用 env(safe-area-inset-*) 让内容自己避开刘海。 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover" />
     <title>LogTime</title>
     <style>
         /* ===== 设计令牌 ===== */
@@ -289,7 +293,9 @@
         #app {
             max-width: var(--app-max);
             margin: 0 auto;
-            padding: var(--app-pad-t) var(--app-pad-x) calc(var(--app-pad-b) + env(safe-area-inset-bottom, 0px));
+            /* viewport-fit=cover 让页面铺满整屏之后，内容必须自己避开刘海与圆角，
+               否则横屏时会被切掉（左右各约 44px）。 */
+            padding: var(--app-pad-t) calc(var(--app-pad-x) + env(safe-area-inset-right, 0px)) calc(var(--app-pad-b) + env(safe-area-inset-bottom, 0px)) calc(var(--app-pad-x) + env(safe-area-inset-left, 0px));
             /* 一屏定高：100dvh 跟着地址栏收放走，所以永远正好是一屏，既不留缝也不会溢出 */
             height: 100vh;
             height: 100dvh;
@@ -651,13 +657,13 @@
             justify-content: space-between;
             gap: 10px;
             flex-wrap: wrap;
-            /* 左右内边距 = 正文列的内边距，控件与上方内容严格对齐；
-               窄屏给一个 16px 的舒适下限，横屏再加刘海安全区，避免控件贴着屏幕边缘 */
+            /* 左右内边距 = 正文列的内边距（含安全区），控件与上方内容严格对齐；
+               窄屏给一个舒适下限，横屏再加刘海安全区，避免控件贴着屏幕边缘 */
             padding-top: 0;
             padding-left: max(calc(var(--app-pad-x) + env(safe-area-inset-left, 0px)),
-                    calc((100vw - var(--app-max)) / 2 + var(--app-pad-x)));
+                    calc((100vw - var(--app-max)) / 2 + var(--app-pad-x) + env(safe-area-inset-left, 0px)));
             padding-right: max(calc(var(--app-pad-x) + env(safe-area-inset-right, 0px)),
-                    calc((100vw - var(--app-max)) / 2 + var(--app-pad-x)));
+                    calc((100vw - var(--app-max)) / 2 + var(--app-pad-x) + env(safe-area-inset-right, 0px)));
             padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
             background: none;
             border: none;
