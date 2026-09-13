@@ -2926,6 +2926,7 @@
                 }
 
                 updateModeButtons(mode);
+                forgetHeroRectSoon();
                 saveState();
             }
 
@@ -3147,6 +3148,7 @@
                 if (dom.gridInner.children.length === 0) {
                     buildGrid();
                 }
+                forgetHeroRectSoon();
             }
 
             function resetState() {
@@ -3464,6 +3466,7 @@
                     dom.taskNameDisplay.classList.remove('hidden');
                     isEditing = false;
                 }
+                forgetHeroRectSoon();
                 saveState();
             }
 
@@ -3558,6 +3561,7 @@
 
             // ===== 初始化 =====
             function init() {
+                forgetHeroRectSoon();
                 loadAppearance();
                 buildGrid();
 
@@ -3642,6 +3646,63 @@
 
                 updateBottomControls();
                 state.isInitialized = true;
+            }
+
+            // ===== 旋转时的位置连续化（FLIP）=====
+            // 旋转会同时改变 100dvh 与安全区：横竖屏高度差近一倍，
+            // 而主体（圆环 / 方格 / 空态按钮）是靠 flex 居中的，
+            // 位置和尺寸会在一帧内跳一大段（横屏中心 y≈225，竖屏 y≈449），
+            // 看起来就是"圆环从上跳到下"。
+            // 用 FLIP 把它按"旋转前的位置与尺寸"用 transform 摆回去，再过渡到自然位置：
+            // 只动 transform（GPU），不触发布局，符合 §12 的性能约束。
+            let heroFlipTimer = null;
+            let settledHeroRect = null;
+
+            function heroEl() {
+                if (!dom.ringContainer.classList.contains('hidden')) return dom.ringContainer;
+                if (dom.gridContainer.classList.contains('active')) return dom.gridContainer;
+                if (!dom.emptyState.classList.contains('hidden')) return dom.emptyState;
+                return null;
+            }
+            function rememberHeroRect() {
+                const el = heroEl();
+                settledHeroRect = el ? el.getBoundingClientRect() : null;
+            }
+            function prefersReducedMotion() {
+                return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+            }
+            function flipHero(from) {
+                const el = heroEl();
+                if (!el || !from || !from.width) { rememberHeroRect(); return; }
+                const to = el.getBoundingClientRect();
+                if (!to.width) { rememberHeroRect(); return; }
+                const dx = from.left - to.left;
+                const dy = from.top - to.top;
+                const sx = from.width / to.width;
+                if (Math.abs(dx) < 2 && Math.abs(dy) < 2 && Math.abs(sx - 1) < 0.02) {
+                    rememberHeroRect();
+                    return;
+                }
+                if (prefersReducedMotion()) { rememberHeroRect(); return; }
+                clearTimeout(heroFlipTimer);
+                el.style.willChange = 'transform';
+                el.style.transformOrigin = 'top left';
+                el.style.transition = 'none';
+                el.style.transform = 'translate(' + dx + 'px, ' + dy + 'px) scale(' + sx + ')';
+                void el.offsetWidth;   // 起始状态必须先落到画面上，否则不会有过渡
+                el.style.transition = 'transform var(--dur-modal) var(--ease-out)';
+                el.style.transform = '';
+                heroFlipTimer = setTimeout(function() {
+                    el.style.transition = '';
+                    el.style.transformOrigin = '';
+                    el.style.willChange = '';
+                    rememberHeroRect();
+                }, 340);
+            }
+            // 页面不滚动，所以只在"布局真的变了"的时刻刷新缓存：
+            // 初始化、切换显示方式、任务开始/重置、以及每次尺寸稳定之后。
+            function forgetHeroRectSoon() {
+                setTimeout(rememberHeroRect, 0);
             }
 
             // ===== 事件绑定 =====
@@ -3807,9 +3868,23 @@
                 function settleViewport() {
                     if (window.scrollY || document.documentElement.scrollTop) window.scrollTo(0, 0);
                 }
+                // ---- 旋转时的位置连续化（FLIP）----
                 let resizeTimer;
+                let lastViewportShape = window.innerWidth + 'x' + window.innerHeight;
+                function viewportTurned() {
+                    // 宽高互换才算"转过了方向"，避免地址栏收放也触发 FLIP
+                    const w = window.innerWidth, h = window.innerHeight;
+                    const wasLandscape = parseInt(lastViewportShape.split('x')[0], 10) >
+                        parseInt(lastViewportShape.split('x')[1], 10);
+                    lastViewportShape = w + 'x' + h;
+                    return wasLandscape !== (w > h);
+                }
                 window.addEventListener('resize', function() {
+                    const before = settledHeroRect;
+                    const turned = viewportTurned();
                     settleViewport();
+                    // 方向变了：在下一帧（新布局已应用）做 FLIP，把那一跳抹平
+                    if (turned) requestAnimationFrame(function() { flipHero(before); });
                     clearTimeout(resizeTimer);
                     resizeTimer = setTimeout(function() {
                         settleViewport();
@@ -3819,16 +3894,20 @@
                             const p = calculatePerceivedProgress(x);
                             drawRing(p);
                         }
+                        rememberHeroRect();
                     }, 200);
                 });
                 // 旋转还会改变 100dvh 与安全区，多补几次让布局稳定下来
                 window.addEventListener('orientationchange', function() {
+                    const before = settledHeroRect;
                     settleViewport();
+                    requestAnimationFrame(function() { flipHero(before); });
                     setTimeout(settleViewport, 150);
                     setTimeout(function() {
                         settleViewport();
                         invalidateRingTheme();
                         if (state.totalDuration > 0) updateTime();
+                        rememberHeroRect();
                     }, 400);
                 });
 
