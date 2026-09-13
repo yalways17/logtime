@@ -2216,7 +2216,7 @@
                 </div>
             </div>
 
-            <div class="modal-version">v.1.3.4</div>
+            <div class="modal-version">v.1.4.0</div>
 
             <div class="modal-close">
                 <button id="infoCloseBtn">关闭</button>
@@ -2839,6 +2839,107 @@
                 updateBottomControls();
             }
 
+            // ===== 到点提醒（系统通知 + 提示音 + 震动）=====
+            // 计时器最核心的承诺：到点了必须能提醒你 —— 哪怕你已经切去别的应用。
+            // 三件事各有分工：
+            //   系统通知：页面在后台时的主力（手机必须走 Service Worker，桌面可直接 new Notification）
+            //   提示音  ：前后台都有效，用 Web Audio 实时合成，不依赖任何音频文件
+            //   震动    ：安卓的兜底
+            // 授权只在"开始任务"这个用户手势里申请一次（浏览器要求手势），
+            // 被拒绝或已拒绝过就不再打扰，声音和震动照常工作。
+            const NOTIFY_ASKED_KEY = 'logtime_notify_asked';
+            let audioCtx = null;
+            let swRegistration = null;
+
+            // 在用户手势里初始化音频上下文：等到计时结束才创建会被自动播放策略拦下
+            function primeAudio() {
+                try {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    if (!AC) return;
+                    if (!audioCtx) audioCtx = new AC();
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                } catch (e) { /* 音频不可用不影响计时 */ }
+            }
+
+            function playChime() {
+                try {
+                    primeAudio();
+                    if (!audioCtx) return;
+                    const t0 = audioCtx.currentTime + 0.01;
+                    [[880, 0], [1318.5, 0.16]].forEach(function (pair) {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.value = pair[0];
+                        const t = t0 + pair[1];
+                        gain.gain.setValueAtTime(0.0001, t);
+                        gain.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
+                        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(t);
+                        osc.stop(t + 0.55);
+                    });
+                } catch (e) { /* ignore */ }
+            }
+
+            function notificationReady() {
+                return typeof Notification !== 'undefined' && Notification.permission === 'granted';
+            }
+
+            function ensureNotifyPermission() {
+                try {
+                    if (typeof Notification === 'undefined') return;
+                    if (Notification.permission !== 'default') return;
+                    // 问过一次就不再弹，避免每次点开始都打扰
+                    if (localStorage.getItem(NOTIFY_ASKED_KEY) === '1') return;
+                    localStorage.setItem(NOTIFY_ASKED_KEY, '1');
+                    Notification.requestPermission();
+                } catch (e) { /* ignore */ }
+            }
+
+            function registerServiceWorker() {
+                if (!('serviceWorker' in navigator)) return;
+                // SW 只在安全上下文可用；file:// 下注册会失败，那就退化成桌面通知
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost' &&
+                    location.hostname !== '127.0.0.1') return;
+                navigator.serviceWorker.register('./sw.js').then(function (reg) {
+                    swRegistration = reg;
+                }).catch(function () { /* 没有 SW 也能用桌面通知 */ });
+            }
+
+            function notifyComplete(title, body) {
+                if (!notificationReady()) return;
+                const opts = {
+                    body: body,
+                    icon: './icon-192.png',
+                    badge: './favicon-32x32.png',
+                    tag: 'logtime-done',
+                    renotify: true,
+                };
+                try {
+                    const reg = swRegistration ||
+                        (navigator.serviceWorker && navigator.serviceWorker.controller);
+                    if (reg && typeof reg.showNotification === 'function') {
+                        reg.showNotification(title, opts);   // 移动端必须走这条
+                    } else {
+                        const n = new Notification(title, opts);   // 桌面端
+                        n.onclick = function () { try { window.focus(); } catch (e) {} n.close(); };
+                    }
+                } catch (e) { /* 通知失败不影响计时 */ }
+            }
+
+            // 到点提醒的统一入口：看得见屏幕时应用内已有庆祝动画，就只出声；
+            // 切到后台了才发系统通知。
+            function alertCompletion() {
+                playChime();
+                try { if (navigator.vibrate) navigator.vibrate([90, 60, 160]); } catch (e) {}
+                if (document.visibilityState !== 'visible') {
+                    notifyComplete('LogTime · 时间到',
+                        (state.taskName.trim() || '未命名任务') + ' 已完成');
+                }
+            }
+
             // ===== 屏幕常亮（Screen Wake Lock）=====
             // 计时过程中不允许系统息屏 —— 计时器类应用的基本预期。
             // 三个必须处理的细节：
@@ -3071,6 +3172,9 @@
                 // 完成反馈（涟漪光晕）
                 triggerCelebrationBurst();
 
+                // 到点提醒：提示音 + 震动，切到后台时补一条系统通知
+                alertCompletion();
+
                 state.isCompleted = true;
                 state.isPaused = true;
                 state.elapsed = state.totalDuration;
@@ -3209,6 +3313,9 @@
 
                 updateTaskInfoDisplay();
                 closeAddPanel();
+                // 借这次用户手势：初始化音频上下文、申请通知授权
+                primeAudio();
+                ensureNotifyPermission();
                 startTimer();
                 saveState();
 
@@ -3241,18 +3348,29 @@
                 btn.style.pointerEvents = 'none';
                 try {
                     document.body.classList.add('capture-mode');
+                    // 配色跟随当前主题：这些颜色以前全是写死的浅色，
+                    // 深色模式下会生成一张和界面完全不搭的白卡。
+                    const cv = {
+                        bg: cssVar('--bg') || '#f5f5f7',
+                        text: cssVar('--text') || '#1d1d1f',
+                        textLight: cssVar('--text-light') || '#6e6e73',
+                        textMuted: cssVar('--text-muted') || '#86868b',
+                        border: cssVar('--border') || 'rgba(0,0,0,0.08)',
+                        blue: cssVar('--blue') || '#007aff',
+                        track: cssVar('--gray-light') || 'rgba(0,0,0,0.05)',
+                    };
                     const wrap = document.createElement('div');
                     wrap.style.cssText =
-                        `position:fixed;left:-9999px;top:0;width:560px;background:#f5f5f7;padding:24px 20px 32px;z-index:-1;`;
+                        `position:fixed;left:-9999px;top:0;width:560px;background:${cv.bg};padding:24px 20px 32px;z-index:-1;`;
                     const tname = state.taskName.trim() || '未命名任务';
                     const dur = state.totalDuration > 0 ? formatDuration(state.totalDuration) : '—';
                     const comp = state.isCompleted;
                     const x = state.totalDuration > 0 ? Math.min(state.elapsed / state.totalDuration, 1) : 0;
                     const p = calculatePerceivedProgress(x);
                     wrap.innerHTML = `
-        <div style="border-bottom:1px solid rgba(0,0,0,0.08);padding-bottom:16px;margin-bottom:16px;">
-            <div style="font-size:1.15rem;color:#1d1d1f;">${tname}</div>
-            <div style="font-size:0.85rem;color:#6e6e73;">${dur}</div>
+        <div style="border-bottom:1px solid ${cv.border};padding-bottom:16px;margin-bottom:16px;">
+            <div style="font-size:1.15rem;color:${cv.text};">${tname}</div>
+            <div style="font-size:0.85rem;color:${cv.textLight};">${dur}</div>
         </div>
         <div style="display:flex;align-items:center;justify-content:center;padding:24px 0;min-height:300px;">
         ${state.mode==='ring'?`
@@ -3262,12 +3380,12 @@
         `:`
         <div style="width:100%;max-width:400px;aspect-ratio:20/10;">
         <div style="display:grid;grid-template-columns:repeat(20,1fr);grid-template-rows:repeat(10,1fr);gap:2px;height:100%;">
-        ${Array.from({length:200},(_,i)=>`<div style="background:${i<Math.round(p*200)?'#007aff':'#e8e8ed'};aspect-ratio:1/1;border-radius:1px;"></div>`).join('')}
+        ${Array.from({length:200},(_,i)=>`<div style="background:${i<Math.round(p*200)?cv.blue:cv.track};aspect-ratio:1/1;border-radius:1px;"></div>`).join('')}
         </div>
         </div>
         `}
         </div>
-        <div style="border-top:1px solid rgba(0,0,0,0.08);padding-top:12px;display:flex;justify-content:space-between;font-size:0.75rem;color:#86868b;">
+        <div style="border-top:1px solid ${cv.border};padding-top:12px;display:flex;justify-content:space-between;font-size:0.75rem;color:${cv.textMuted};">
         <span>LogTime</span><span>${comp?'已完成':''}</span>
         </div>
         `;
@@ -3284,7 +3402,7 @@
                         ctx.clearRect(0, 0, w, h);
                         ctx.beginPath();
                         ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-                        ctx.strokeStyle = '#e8e8ed';
+                        ctx.strokeStyle = cv.track;
                         ctx.lineWidth = lw;
                         ctx.lineCap = 'round';
                         ctx.stroke();
@@ -3293,21 +3411,21 @@
                             ea = sa + Math.PI * 2 * cl;
                         ctx.beginPath();
                         ctx.arc(cx, cy, radius, sa, ea);
-                        ctx.strokeStyle = '#007aff';
+                        ctx.strokeStyle = cv.blue;
                         ctx.lineWidth = lw;
                         ctx.lineCap = 'round';
                         ctx.stroke();
                         if (cl >= 1) {
                             ctx.beginPath();
                             ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-                            ctx.strokeStyle = '#5a8a9e';
+                            ctx.strokeStyle = cv.blue;
                             ctx.lineWidth = lw * 0.3;
                             ctx.globalAlpha = 0.15;
                             ctx.stroke();
                             ctx.globalAlpha = 1;
                         }
                     }
-                    const canvas = await html2canvas(wrap, { scale: 2, useCORS: true, backgroundColor: '#f7f6f2',
+                    const canvas = await html2canvas(wrap, { scale: 2, useCORS: true, backgroundColor: cv.bg,
                         logging: false });
                     document.body.removeChild(wrap);
                     document.body.classList.remove('capture-mode');
@@ -4034,6 +4152,7 @@
             document.addEventListener('DOMContentLoaded', async function() {
                 init();
                 bindEvents();
+                registerServiceWorker();
                 if (supabaseClient) {
                     supabaseClient.auth.onAuthStateChange(function(event, session) {
                         if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
