@@ -1310,11 +1310,17 @@
             font-family: "SF Mono", ui-monospace, "Cascadia Code", Consolas, "Segoe UI", monospace;
             font-size: 1.15rem;
             font-weight: 500;
-            color: var(--blue);
+            /* 默认用正文色（深色模式下就是近白），选中时才变蓝 ——
+               公式占的面积最大，它跟着变蓝，"选中"这件事才一眼看得出来。
+               KaTeX 内部是 color: inherit，所以改父级即可。 */
+            color: var(--text);
             text-align: center;
             letter-spacing: 0.01em;
             line-height: 1.8;
             padding: 6px 0 2px;
+        }
+        .mode-card.active .mode-card-formula {
+            color: var(--blue);
         }
         .mode-card-formula .katex {
             font-size: 1.12em;
