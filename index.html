@@ -5,7 +5,11 @@
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
     <link rel="manifest" href="./site.webmanifest">
-    <meta name="theme-color" content="#007AFF">
+    <!-- 浏览器自身的 UI（地址栏 / 状态栏）取色跟页面背景一致，
+         否则手机竖屏最上端会出现一条和页面不搭的色带。
+         之前写死成 #007AFF（亮蓝），和深色页面放在一起非常跳。 -->
+    <meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0c0f17" media="(prefers-color-scheme: dark)">
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
     <title>LogTime</title>
@@ -18,6 +22,9 @@
         }
         :root {
             --bg: #f5f5f7;
+            /* 背景层是一条极缓的纵向渐变，整块表面有统一走向，而不是纯色 + 贴上去的光斑 */
+            --bg-top: #fbfbfd;
+            --bg-bottom: #eceef3;
             --bg-solid: #ffffff;
             --bg-card: rgba(255, 255, 255, 0.72);
             --bg-frost: rgba(255, 255, 255, 0.6);
@@ -83,7 +90,11 @@
             color-scheme: light;
         }
         :root[data-theme="dark"] {
-            --bg: #000000;
+            /* 深色底不再是纯 #000：纯黑会让光晕看起来像贴上去的图片，
+               稍微抬一点点并带一点蓝，整块表面才像同一个材质 */
+            --bg: #05060a;
+            --bg-top: #0c0f17;
+            --bg-bottom: #020305;
             --bg-solid: #1c1c1e;
             --bg-card: rgba(30, 30, 32, 0.72);
             --bg-frost: rgba(28, 28, 30, 0.6);
@@ -113,7 +124,9 @@
         }
         @media (prefers-color-scheme: dark) {
             :root:not([data-theme="light"]) {
-                --bg: #000000;
+                --bg: #05060a;
+                --bg-top: #0c0f17;
+                --bg-bottom: #020305;
                 --bg-solid: #1c1c1e;
                 --bg-card: rgba(30, 30, 32, 0.72);
                 --bg-frost: rgba(28, 28, 30, 0.6);
@@ -146,18 +159,17 @@
             scrollbar-width: thin;
             scrollbar-color: var(--gray) transparent;
         }
-        /* html 定高、body 用 min-height：
-           以前两个都是 height:100%，body 的盒子就永远只有一屏高。
-           内容一旦超过一屏（手机横屏最容易触发），滚过第一屏之后就是未被绘制的画布，
-           露出 html 的纯色背景 —— 而蓝色渐变是 fixed 钉在视口上的，
-           于是"渐变只在一屏内、下面一片死黑"。body 跟着内容长高，渐变才能一直铺满。 */
+        /* html 定高、body 用 min-height：body 要跟着内容长高，页面才能正常滚动 */
         html {
             height: 100%;
+            /* 画布底色：滚过头（overscroll）时露出的就是它，
+               取渐变的中段色，所以任何情况下都不会出现割裂的色块 */
             background-color: var(--bg);
+            transition: background-color var(--dur-modal) var(--ease);
         }
         body {
             min-height: 100%;
-            background: var(--bg);
+            background: none;
             color: var(--text);
             font-family: var(--font);
             font-size: 16px;
@@ -166,15 +178,28 @@
             -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility;
             font-optical-sizing: auto;
-            transition: background var(--dur-modal) var(--ease), color var(--dur-modal) var(--ease);
+            transition: color var(--dur-modal) var(--ease);
         }
-        body {
+        /* ===== 背景层 =====
+           以前背景挂在 body 上并配 background-attachment: fixed，等于把整页铺在一张"壁纸"上：
+           渐变按文档盒子定位，而手机上地址栏收放会改变视口高度、横竖屏的视口比例又完全不同，
+           没有被渐变覆盖到的地方就露出底色 —— 深色模式下就是纯黑，
+           于是出现"竖屏顶部一条黑、横屏左右两条黑"。
+           现在改成贴着视口的独立图层：尺寸用视口单位表达，
+           不管屏幕多宽多高、什么方向、滚到哪里，光晕都固定长在屏幕四角；
+           底下再垫一层极缓的纵向渐变，让整块表面有统一的明暗走向，
+           而不是"一片死黑 + 几个贴上去的光斑"。 */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
             background:
-                radial-gradient(1100px 620px at 84% -10%, var(--bg-glow-1), transparent 62%),
-                radial-gradient(820px 520px at 4% 104%, var(--bg-glow-2), transparent 62%),
-                radial-gradient(760px 460px at 50% 48%, var(--bg-glow-3), transparent 70%),
-                var(--bg);
-            background-attachment: fixed;
+                radial-gradient(115vw 62vh at 84% -8%, var(--bg-glow-1), transparent 62%),
+                radial-gradient(88vw 58vh at 2% 102%, var(--bg-glow-2), transparent 62%),
+                radial-gradient(78vw 48vh at 50% 46%, var(--bg-glow-3), transparent 70%),
+                linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 46%, var(--bg-bottom) 100%);
         }
         /* 弹窗打开时把下层界面"推后"：降饱和 + 轻微缩小（Apple 的空间层级，不是简单盖一层遮罩） */
         #app {
