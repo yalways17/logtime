@@ -146,9 +146,17 @@
             scrollbar-width: thin;
             scrollbar-color: var(--gray) transparent;
         }
-        html,
-        body {
+        /* html 定高、body 用 min-height：
+           以前两个都是 height:100%，body 的盒子就永远只有一屏高。
+           内容一旦超过一屏（手机横屏最容易触发），滚过第一屏之后就是未被绘制的画布，
+           露出 html 的纯色背景 —— 而蓝色渐变是 fixed 钉在视口上的，
+           于是"渐变只在一屏内、下面一片死黑"。body 跟着内容长高，渐变才能一直铺满。 */
+        html {
             height: 100%;
+            background-color: var(--bg);
+        }
+        body {
+            min-height: 100%;
             background: var(--bg);
             color: var(--text);
             font-family: var(--font);
@@ -563,8 +571,13 @@
             justify-content: space-between;
             gap: 10px;
             flex-wrap: wrap;
-            /* 左右内边距 = 正文列的内边距，控件与上方内容严格对齐 */
-            padding: 0 max(var(--app-pad-x), calc((100vw - var(--app-max)) / 2 + var(--app-pad-x)));
+            /* 左右内边距 = 正文列的内边距，控件与上方内容严格对齐；
+               窄屏给一个 16px 的舒适下限，横屏再加刘海安全区，避免控件贴着屏幕边缘 */
+            padding-top: 0;
+            padding-left: max(calc(var(--app-pad-x) + env(safe-area-inset-left, 0px)),
+                    calc((100vw - var(--app-max)) / 2 + var(--app-pad-x)));
+            padding-right: max(calc(var(--app-pad-x) + env(safe-area-inset-right, 0px)),
+                    calc((100vw - var(--app-max)) / 2 + var(--app-pad-x)));
             padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
             background: none;
             border: none;
@@ -1522,7 +1535,8 @@
         @media (max-width: 480px) {
             :root {
                 --app-pad-t: 16px;
-                --app-pad-x: 14px;
+                /* 窄屏原来只有 14px，底栏贴边时显得很极端；提到 iOS 标准的 16px */
+                --app-pad-x: 16px;
                 --app-pad-b: 24px;
                 --ring-size: 180px;
                 --grid-gap: 2px;
@@ -1639,7 +1653,8 @@
             }
             :root {
                 --app-pad-t: 12px;
-                --app-pad-x: 10px;
+                /* 原来是 10px，控件几乎贴着屏幕边缘 */
+                --app-pad-x: 16px;
                 --app-pad-b: 18px;
             }
             .empty-footer {
@@ -2034,7 +2049,7 @@
                 </div>
             </div>
 
-            <div class="modal-version">v.1.3.2</div>
+            <div class="modal-version">v.1.3.3</div>
 
             <div class="modal-close">
                 <button id="infoCloseBtn">关闭</button>
@@ -2127,11 +2142,27 @@
             };
 
             // ===== Supabase =====
-            const supabaseClient = window.supabase.createClient(
-                CONFIG.SUPABASE_URL,
-                CONFIG.SUPABASE_PUBLISHABLE_KEY,
-                { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
-            );
+            // SDK 来自 CDN，移动网络下加载失败很常见（超时、被拦、弱网）。
+            // 云同步是可选能力，绝不能让它把整个应用拖死：拿不到 SDK 就退化为纯本地模式。
+            // 以前的写法是直接 window.supabase.createClient(...)，
+            // CDN 一旦失败就会在这里抛错，整个 IIFE 中断 —— init() 和事件绑定都不会执行，
+            // 结果是页面完全点不动，连「添加任务」都打不开。
+            const supabaseClient = (function() {
+                if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+                    console.warn('LogTime: Supabase SDK 未加载，已降级为本地模式（计时与历史记录不受影响）');
+                    return null;
+                }
+                try {
+                    return window.supabase.createClient(
+                        CONFIG.SUPABASE_URL,
+                        CONFIG.SUPABASE_PUBLISHABLE_KEY,
+                        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+                    );
+                } catch (e) {
+                    console.warn('LogTime: Supabase 初始化失败，已降级为本地模式', e);
+                    return null;
+                }
+            })();
             let currentUser = null;
             let cloudHydrated = false;
             let cloudSaveTimer = null;
@@ -2338,7 +2369,7 @@
             }
 
             async function loadCloudHistory() {
-                if (!currentUser) return;
+                if (!currentUser || !supabaseClient) return;
                 const { data, error } = await supabaseClient
                     .from('logtime_history')
                     .select('id, task_name, total_duration, elapsed, feedback_mode, display_mode, completed_at')
@@ -2372,7 +2403,7 @@
                     localStorage.setItem(CONFIG.HISTORY_KEY, JSON.stringify(history));
                     showSaveToast();
 
-                    if (currentUser) {
+                    if (currentUser && supabaseClient) {
                         const { error } = await supabaseClient.from('logtime_history').insert({
                             id: item.id,
                             user_id: currentUser.id,
@@ -2393,7 +2424,7 @@
                     const history = getHistory().filter(item => item.id !== id);
                     localStorage.setItem(CONFIG.HISTORY_KEY, JSON.stringify(history));
                     renderHistory();
-                    if (currentUser) {
+                    if (currentUser && supabaseClient) {
                         const { error } = await supabaseClient.from('logtime_history').delete().eq('id', id).eq('user_id', currentUser.id);
                         if (error) console.warn('LogTime history delete:', error.message);
                     }
@@ -3117,7 +3148,7 @@
             }
 
             async function saveCloudState(d) {
-                if (!currentUser || !cloudHydrated) return;
+                if (!currentUser || !cloudHydrated || !supabaseClient) return;
                 const { error } = await supabaseClient.from('logtime_state').upsert({
                     user_id: currentUser.id,
                     state: d,
@@ -3148,7 +3179,7 @@
             }
 
             async function hydrateFromCloud() {
-                if (!currentUser) return;
+                if (!currentUser || !supabaseClient) return;
                 const { data, error } = await supabaseClient
                     .from('logtime_state').select('state').eq('user_id', currentUser.id).maybeSingle();
                 if (error) { console.warn('LogTime cloud state:', error.message); cloudHydrated = true; return; }
@@ -3327,6 +3358,10 @@
                 const password = dom.authPassword.value;
                 if (!email || !email.includes('@')) { setAuthStatus('请输入有效邮箱。', 'error'); return; }
                 if (password.length < 6) { setAuthStatus('密码至少需要 6 位。', 'error'); return; }
+                if (!supabaseClient) {
+                    setAuthStatus('云端服务未加载（网络或 CDN 问题），本地计时与历史记录不受影响。', 'error');
+                    return;
+                }
                 authBusy = true;
                 dom.authSubmitBtn.disabled = true;
                 setAuthStatus(authRegisterMode ? '正在注册……' : '正在登录……');
@@ -3469,7 +3504,7 @@
                 dom.authGuestCloseBtn.addEventListener('click', () => dom.authModal.classList.remove('open'));
                 dom.authCloseBtn.addEventListener('click', () => dom.authModal.classList.remove('open'));
                 dom.authSignOutBtn.addEventListener('click', async function() {
-                    await supabaseClient.auth.signOut();
+                    if (supabaseClient) await supabaseClient.auth.signOut();
                     dom.authModal.classList.remove('open');
                     cloudHydrated = false;
                     currentUser = null;
@@ -3663,15 +3698,20 @@
             document.addEventListener('DOMContentLoaded', async function() {
                 init();
                 bindEvents();
-                supabaseClient.auth.onAuthStateChange(function(event, session) {
-                    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
-                        setTimeout(() => handleAuthSession(session), 0);
-                    } else if (event === 'SIGNED_OUT') {
-                        currentUser = null; cloudHydrated = false; updateAuthUI();
-                    }
-                });
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                if (session) await handleAuthSession(session);
+                if (supabaseClient) {
+                    supabaseClient.auth.onAuthStateChange(function(event, session) {
+                        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+                            setTimeout(() => handleAuthSession(session), 0);
+                        } else if (event === 'SIGNED_OUT') {
+                            currentUser = null; cloudHydrated = false; updateAuthUI();
+                        }
+                    });
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    if (session) await handleAuthSession(session);
+                } else {
+                    // 本地模式：云端入口保持可见但点了会给出说明
+                    updateAuthUI();
+                }
                 if (state.totalDuration <= 0) {
                     dom.emptyState.classList.remove('hidden');
                     dom.ringContainer.classList.add('hidden');
