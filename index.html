@@ -293,9 +293,11 @@
         #app {
             max-width: var(--app-max);
             margin: 0 auto;
-            /* viewport-fit=cover 让页面铺满整屏之后，内容必须自己避开刘海与圆角，
-               否则横屏时会被切掉（左右各约 44px）。 */
-            padding: var(--app-pad-t) calc(var(--app-pad-x) + env(safe-area-inset-right, 0px)) calc(var(--app-pad-b) + env(safe-area-inset-bottom, 0px)) calc(var(--app-pad-x) + env(safe-area-inset-left, 0px));
+            /* viewport-fit=cover 让页面铺满整屏之后，内容必须自己避开四个方向的安全区。
+               四个方向都要写 —— 只写左右下、漏掉顶部，横屏看着没事（刘海在侧边，
+               顶部 inset 为 0），但一转回竖屏，顶部 inset 变成 47~59px（状态栏 / 灵动岛），
+               顶栏就会被压到状态栏底下，页面上部显示不全。 */
+            padding: calc(var(--app-pad-t) + env(safe-area-inset-top, 0px)) calc(var(--app-pad-x) + env(safe-area-inset-right, 0px)) calc(var(--app-pad-b) + env(safe-area-inset-bottom, 0px)) calc(var(--app-pad-x) + env(safe-area-inset-left, 0px));
             /* 一屏定高：100dvh 跟着地址栏收放走，所以永远正好是一屏，既不留缝也不会溢出 */
             height: 100vh;
             height: 100dvh;
@@ -1020,7 +1022,8 @@
             display: none;
             align-items: flex-start;
             justify-content: flex-end;
-            padding: 14px 14px;
+            /* 菜单是从右上角弹出的浮层，同样要避开状态栏 / 刘海 */
+            padding: calc(14px + env(safe-area-inset-top, 0px)) calc(14px + env(safe-area-inset-right, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)) calc(14px + env(safe-area-inset-left, 0px));
             backdrop-filter: blur(6px);
             -webkit-backdrop-filter: blur(6px);
         }
@@ -3797,11 +3800,19 @@
                     }
                 });
 
-                // ---- 窗口 resize ----
+                // ---- 窗口 resize / 横竖屏切换 ----
+                // iOS 在旋转后有时会保留一个视觉视口偏移（即使页面已 lock 住不滚动），
+                // 表现就是"页面上部显示不全"。这里在尺寸变化后把它归零，属于无害的兜底：
+                // 页面本来就不该滚动，scrollTo(0,0) 在正常情况下是空操作。
+                function settleViewport() {
+                    if (window.scrollY || document.documentElement.scrollTop) window.scrollTo(0, 0);
+                }
                 let resizeTimer;
                 window.addEventListener('resize', function() {
+                    settleViewport();
                     clearTimeout(resizeTimer);
                     resizeTimer = setTimeout(function() {
+                        settleViewport();
                         if (state.mode === 'ring' && !dom.ringContainer.classList.contains('hidden')) {
                             const x = state.totalDuration > 0 ? Math.min(state.elapsed / state
                                 .totalDuration, 1) : 0;
@@ -3809,6 +3820,16 @@
                             drawRing(p);
                         }
                     }, 200);
+                });
+                // 旋转还会改变 100dvh 与安全区，多补几次让布局稳定下来
+                window.addEventListener('orientationchange', function() {
+                    settleViewport();
+                    setTimeout(settleViewport, 150);
+                    setTimeout(function() {
+                        settleViewport();
+                        invalidateRingTheme();
+                        if (state.totalDuration > 0) updateTime();
+                    }, 400);
                 });
 
                 // ---- 键盘快捷键 ----
