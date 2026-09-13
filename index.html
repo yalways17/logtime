@@ -25,6 +25,12 @@
             /* 背景层是一条极缓的纵向渐变，整块表面有统一走向，而不是纯色 + 贴上去的光斑 */
             --bg-top: #fbfbfd;
             --bg-bottom: #eceef3;
+            /* 浅色：对角双光晕（浅色不会发黑，不存在覆盖盲区问题） */
+            --bg-layer:
+                radial-gradient(140vw 95vh at 82% -10%, var(--bg-glow-1), transparent 82%),
+                radial-gradient(130vw 90vh at 12% 106%, var(--bg-glow-2), transparent 82%),
+                radial-gradient(100vw 70vh at 50% 45%, var(--bg-glow-3), transparent 85%),
+                linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 50%, var(--bg-bottom) 100%);
             --bg-solid: #ffffff;
             --bg-card: rgba(255, 255, 255, 0.72);
             --bg-frost: rgba(255, 255, 255, 0.6);
@@ -90,14 +96,23 @@
             color-scheme: light;
         }
         :root[data-theme="dark"] {
-            /* 深色底不再是纯 #000：纯黑会让光晕看起来像贴上去的图片，
-               稍微抬一点点并带一点蓝，整块表面才像同一个材质 */
-            --bg: #05060a;
-            --bg-top: #0c0f17;
-            --bg-bottom: #020305;
+            /* ===== OLED 纯黑 =====
+               底色就是 #000（OLED 上像素真正熄灭），不带任何线性渐变 ——
+               线性渐变会让上下两端出现不同色调，那正是"一条黑边"的来源。
+               唯一的色彩是一层以视口正中为心的对称柔光：水平垂直衰减一致，
+               所以四边一样暗，不存在"某一边特别黑"。
+               层次不靠背景，靠材质：面板/卡片的重量、以及顶部受光边
+               （纯黑上投影是看不见的，所以抬升必须用亮边表达，见 --edge-light）。 */
+            --bg: #000000;
+            --bg-top: #000000;
+            --bg-bottom: #000000;
+            --bg-layer:
+                radial-gradient(135vw 95vh at 50% 44%, var(--bg-glow-1), transparent 82%),
+                #000000;
             --bg-solid: #1c1c1e;
-            --bg-card: rgba(30, 30, 32, 0.72);
-            --bg-frost: rgba(28, 28, 30, 0.6);
+            /* 纯黑上的浮层要比在黑灰底上更亮一点才读得出"浮起来" */
+            --bg-card: rgba(38, 38, 41, 0.78);
+            --bg-frost: rgba(34, 34, 38, 0.66);
             --text: #f5f5f7;
             --text-light: #a1a1a6;
             --text-muted: #6e6e73;
@@ -114,22 +129,27 @@
             --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.35);
             --shadow-md: 0 16px 48px rgba(0, 0, 0, 0.55);
             --shadow-lg: 0 28px 70px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.4);
-            --edge-light: rgba(255, 255, 255, 0.16);
-            --edge-shade: rgba(0, 0, 0, 0.35);
-            --inset-light: inset 0 1px 0 rgba(255, 255, 255, 0.07);
-            --bg-glow-1: rgba(10, 132, 255, 0.17);
-            --bg-glow-2: rgba(94, 92, 230, 0.15);
-            --bg-glow-3: rgba(10, 132, 255, 0.06);
+            --edge-light: rgba(255, 255, 255, 0.24);
+            --edge-shade: rgba(0, 0, 0, 0.5);
+            --inset-light: inset 0 1px 0 rgba(255, 255, 255, 0.11);
+            /* 纯黑上投影几乎不可见，所以"浮起来"这件事必须由受光边承担，
+               这里把高光边加强（§12：面上抬靠更强的材质表达，而不是更深的投影） */
+            --bg-glow-1: rgba(10, 132, 255, 0.14);
+            --bg-glow-2: rgba(94, 92, 230, 0.18);
+            --bg-glow-3: rgba(10, 132, 255, 0.07);
             color-scheme: dark;
         }
         @media (prefers-color-scheme: dark) {
             :root:not([data-theme="light"]) {
-                --bg: #05060a;
-                --bg-top: #0c0f17;
-                --bg-bottom: #020305;
+                --bg: #000000;
+                --bg-top: #000000;
+                --bg-bottom: #000000;
+                --bg-layer:
+                    radial-gradient(135vw 95vh at 50% 44%, var(--bg-glow-1), transparent 82%),
+                    #000000;
                 --bg-solid: #1c1c1e;
-                --bg-card: rgba(30, 30, 32, 0.72);
-                --bg-frost: rgba(28, 28, 30, 0.6);
+                --bg-card: rgba(38, 38, 41, 0.78);
+                --bg-frost: rgba(34, 34, 38, 0.66);
                 --text: #f5f5f7;
                 --text-light: #a1a1a6;
                 --text-muted: #6e6e73;
@@ -146,12 +166,12 @@
                 --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.35);
                 --shadow-md: 0 16px 48px rgba(0, 0, 0, 0.55);
                 --shadow-lg: 0 28px 70px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.4);
-                --edge-light: rgba(255, 255, 255, 0.16);
-                --edge-shade: rgba(0, 0, 0, 0.35);
-                --inset-light: inset 0 1px 0 rgba(255, 255, 255, 0.07);
-                --bg-glow-1: rgba(10, 132, 255, 0.17);
-                --bg-glow-2: rgba(94, 92, 230, 0.15);
-                --bg-glow-3: rgba(10, 132, 255, 0.06);
+                --edge-light: rgba(255, 255, 255, 0.24);
+                --edge-shade: rgba(0, 0, 0, 0.5);
+                --inset-light: inset 0 1px 0 rgba(255, 255, 255, 0.11);
+                --bg-glow-1: rgba(10, 132, 255, 0.14);
+                --bg-glow-2: rgba(94, 92, 230, 0.18);
+                --bg-glow-3: rgba(10, 132, 255, 0.07);
                 color-scheme: dark;
             }
         }
@@ -203,11 +223,12 @@
             inset: 0;
             z-index: -1;
             pointer-events: none;
-            background:
-                radial-gradient(115vw 62vh at 84% -8%, var(--bg-glow-1), transparent 62%),
-                radial-gradient(88vw 58vh at 2% 102%, var(--bg-glow-2), transparent 62%),
-                radial-gradient(78vw 48vh at 50% 46%, var(--bg-glow-3), transparent 70%),
-                linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 46%, var(--bg-bottom) 100%);
+            /* 深色的明暗必须是**各向同性**的：一旦用线性渐变或偏心光晕，
+               就会出现方向性的明暗带，较暗的那块看起来就像"没铺到的黑色区域"，
+               整页也就像贴了一张图。所以深色改成纯黑底 + 以视口正中为心的对称柔光：
+               越靠边越暗，但四个方向衰减完全一致，不存在"某一边特别黑"。
+               浅色保持对角双光晕（浅色不存在发黑的问题）。 */
+            background: var(--bg-layer);
         }
         /* 弹窗打开时把下层界面"推后"：降饱和 + 轻微缩小（Apple 的空间层级，不是简单盖一层遮罩） */
         #app {
@@ -544,11 +565,21 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
-            padding: 70px 0 0 0;
+            /* 光学中心，并按"下方有说明文字"再上偏一档：
+               把一个元素放在几何正中，看起来会偏低（人眼感知的中心比几何中心高约 5%）；
+               而按钮下面还有一行"添加任务"，文字把视觉重量继续往下拉，
+               所以带尾随文字的组合要比通用光学中心再往上一点。
+               这里用 13vh 的底部内边距把内容整体上移 6.5vh
+               （flex 居中会把内容盒平分，实际位移是内边距的一半），
+               竖屏横屏都落在主体区约 42.5% 的高度上。
+               注意不能用百分比内边距：CSS 的百分比 padding 是按**宽度**算的，
+               横屏下会随屏宽变化而失效。 */
+            justify-content: center;
+            padding: 0 0 13vh;
             color: var(--text-light);
             flex: 1;
             width: 100%;
+            position: relative;
         }
         .empty-state .add-trigger {
             width: 78px;
@@ -592,8 +623,11 @@
             letter-spacing: 0.02em;
         }
         .empty-footer {
-            margin-top: auto;
-            margin-bottom: -8px;
+            /* 钉在主体区最底部，不参与上方内容的居中 */
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: -8px;
             padding-top: 16px;
             text-align: center;
             font-size: 0.72rem;
@@ -1787,9 +1821,6 @@
             }
             .main-visual {
                 padding: 4px 0 2px;
-            }
-            .empty-state {
-                padding-top: 10px;
             }
             .empty-state .add-trigger {
                 width: 58px;
