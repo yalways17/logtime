@@ -1297,7 +1297,12 @@
             padding: 2px 9px;
             border-radius: 999px;
         }
-        .mode-card-header .mode-badge.depart-badge {
+        /* 高亮跟着当前选中的时间反馈模式走：汉字名与字母徽标一起亮。
+           （以前是把 depart-badge 写死在"启程"上，所以无论选哪个都是第一个常亮） */
+        .mode-card.active .mode-name {
+            color: var(--blue);
+        }
+        .mode-card.active .mode-badge {
             color: var(--blue);
             background: var(--blue-pale);
         }
@@ -2180,15 +2185,15 @@
             </div>
 
             <div class="mode-cards">
-                <div class="mode-card">
+                <div class="mode-card" data-feedback-mode="A">
                     <div class="mode-card-header">
                         <span class="mode-name">启程</span>
-                        <span class="mode-badge depart-badge">A</span>
+                        <span class="mode-badge">A</span>
                     </div>
                     <div class="mode-card-formula">$$P(x)=\dfrac{\ln(1+2x)}{\ln 3}$$</div>
                 </div>
 
-                <div class="mode-card">
+                <div class="mode-card" data-feedback-mode="B">
                     <div class="mode-card-header">
                         <span class="mode-name">抵达</span>
                         <span class="mode-badge">B</span>
@@ -2196,7 +2201,7 @@
                     <div class="mode-card-formula">$$P(x)=x^2$$</div>
                 </div>
 
-                <div class="mode-card">
+                <div class="mode-card" data-feedback-mode="C">
                     <div class="mode-card-header">
                         <span class="mode-name">恒行</span>
                         <span class="mode-badge">C</span>
@@ -3108,6 +3113,14 @@
                     radio.checked = (radio.value === state.feedbackMode);
                     radio.disabled = isLocked;
                 });
+                updateModeCards();
+            }
+
+            // 关于弹窗里三张卡片：选中的那个整条亮起来（汉字名 + 字母徽标一起）
+            function updateModeCards() {
+                document.querySelectorAll('.mode-card[data-feedback-mode]').forEach(function(el) {
+                    el.classList.toggle('active', el.dataset.feedbackMode === state.feedbackMode);
+                });
             }
 
             function closeAddPanel() {
@@ -3156,6 +3169,7 @@
                 } else {
                     state.feedbackMode = 'A';
                 }
+                updateModeCards();
 
                 state.isModeLocked = true;
 
@@ -3881,6 +3895,8 @@
 
                 // ---- 简洁信息弹窗 ----
                 dom.infoBtn.addEventListener('click', function() {
+                    // 打开时刷新一次高亮，保证和当前选中的模式一致
+                    updateModeCards();
                     dom.infoModal.classList.add('open');
                 });
                 dom.infoCloseBtn.addEventListener('click', function() {
