@@ -40,14 +40,46 @@
             --radius-lg: 22px;
             --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.05);
             --shadow-md: 0 16px 48px rgba(0, 0, 0, 0.12);
-            --blur: blur(22px) saturate(180%);
+            --shadow-lg: 0 28px 70px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06);
+            /* ===== 材质分档：面越大越"厚"（更强模糊 + 更深阴影 + 更明显的高光边） ===== */
+            --material-thin: blur(12px) saturate(160%);
+            --material-regular: blur(16px) saturate(180%);
+            --material-thick: blur(20px) saturate(200%);
+            --blur: blur(20px) saturate(200%);
+            /* 玻璃的厚度：顶部受光、内部一道高光、底部落影 */
+            --edge-light: rgba(255, 255, 255, 0.7);
+            --edge-shade: rgba(0, 0, 0, 0.06);
+            --inset-light: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+            /* 背景的三层光晕 */
+            --bg-glow-1: rgba(0, 122, 255, 0.11);
+            --bg-glow-2: rgba(88, 86, 214, 0.10);
+            --bg-glow-3: rgba(0, 122, 255, 0.045);
             --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+            /* 版心：底部工具栏要靠这几个值跟正文列严格对齐 */
+            --app-max: 560px;
+            --app-pad-x: 20px;
+            --app-pad-t: 20px;
+            --app-pad-b: 28px;
             --ring-size: 220px;
             --grid-gap: 3px;
             --grid-cols: 20;
             --grid-rows: 10;
+            /* ===== 动效令牌 =====
+               曲线偏强（内置 ease-out 太弱，会让动效显得"没做完"）；
+               时长全部落在 <300ms 的 UI 预算内，按元素类型分档。 */
+            --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+            /* 屏上位移/形变 */
+            --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+            /* hover / 颜色变化 */
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+            /* 兼容旧引用：同 --ease-out，弹簧感收尾 */
             --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
-            --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+            /* 按压反馈 */
+            --dur-press: 140ms;
+            /* 浮层 / 提示 */
+            --dur-pop: 200ms;
+            /* 面板 / 弹窗 */
+            --dur-modal: 280ms;
             color-scheme: light;
         }
         :root[data-theme="dark"] {
@@ -70,6 +102,13 @@
             --success: #32d74b;
             --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.35);
             --shadow-md: 0 16px 48px rgba(0, 0, 0, 0.55);
+            --shadow-lg: 0 28px 70px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.4);
+            --edge-light: rgba(255, 255, 255, 0.16);
+            --edge-shade: rgba(0, 0, 0, 0.35);
+            --inset-light: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+            --bg-glow-1: rgba(10, 132, 255, 0.17);
+            --bg-glow-2: rgba(94, 92, 230, 0.15);
+            --bg-glow-3: rgba(10, 132, 255, 0.06);
             color-scheme: dark;
         }
         @media (prefers-color-scheme: dark) {
@@ -93,6 +132,13 @@
                 --success: #32d74b;
                 --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.35);
                 --shadow-md: 0 16px 48px rgba(0, 0, 0, 0.55);
+                --shadow-lg: 0 28px 70px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.4);
+                --edge-light: rgba(255, 255, 255, 0.16);
+                --edge-shade: rgba(0, 0, 0, 0.35);
+                --inset-light: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+                --bg-glow-1: rgba(10, 132, 255, 0.17);
+                --bg-glow-2: rgba(94, 92, 230, 0.15);
+                --bg-glow-3: rgba(10, 132, 255, 0.06);
                 color-scheme: dark;
             }
         }
@@ -111,14 +157,27 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility;
-            transition: background 0.4s ease, color 0.4s ease;
+            font-optical-sizing: auto;
+            transition: background var(--dur-modal) var(--ease), color var(--dur-modal) var(--ease);
         }
         body {
             background:
-                radial-gradient(1200px 640px at 85% -8%, rgba(0, 122, 255, 0.07), transparent 60%),
-                radial-gradient(900px 560px at 8% 108%, rgba(88, 86, 214, 0.06), transparent 60%),
+                radial-gradient(1100px 620px at 84% -10%, var(--bg-glow-1), transparent 62%),
+                radial-gradient(820px 520px at 4% 104%, var(--bg-glow-2), transparent 62%),
+                radial-gradient(760px 460px at 50% 48%, var(--bg-glow-3), transparent 70%),
                 var(--bg);
             background-attachment: fixed;
+        }
+        /* 弹窗打开时把下层界面"推后"：降饱和 + 轻微缩小（Apple 的空间层级，不是简单盖一层遮罩） */
+        #app {
+            transform-origin: 50% 38%;
+            transition: transform var(--dur-modal) var(--ease-out), filter var(--dur-modal) var(--ease);
+        }
+        @supports selector(:has(*)) {
+            body:has(.modal-overlay.open) #app {
+                transform: scale(0.982);
+                filter: saturate(0.82) brightness(0.95);
+            }
         }
         ::-webkit-scrollbar {
             width: 7px;
@@ -166,13 +225,17 @@
             transform: scale(0.88);
         }
         #app {
-            max-width: 560px;
+            max-width: var(--app-max);
             margin: 0 auto;
-            padding: 20px 20px 28px;
+            padding: var(--app-pad-t) var(--app-pad-x) calc(var(--app-pad-b) + env(safe-area-inset-bottom, 0px));
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             position: relative;
+        }
+        /* 底部控件出现时，正文列多留出它的高度，内容不会被压在控件下面 */
+        #app.has-bottom-bar {
+            --app-pad-b: 96px;
         }
         .top-bar {
             display: flex;
@@ -200,7 +263,9 @@
         .task-name-display {
             font-size: 1.45rem;
             font-weight: 650;
-            letter-spacing: -0.015em;
+            /* 字距随字号走：大字号要收紧，小字号才需要放开（见下方各断点） */
+            letter-spacing: -0.019em;
+            line-height: 1.25;
             color: var(--text);
             word-break: break-word;
             padding: 3px 8px;
@@ -215,7 +280,7 @@
             user-select: text;
             -webkit-user-select: text;
             outline: none;
-            transition: background 0.15s;
+            transition: background var(--dur-press) var(--ease);
         }
         .task-name-display:hover {
             background: var(--gray-light);
@@ -227,7 +292,8 @@
         .task-name-input {
             font-size: 1.45rem;
             font-weight: 650;
-            letter-spacing: -0.015em;
+            letter-spacing: -0.019em;
+            line-height: 1.25;
             color: var(--text);
             padding: 3px 8px;
             min-height: 2.2rem;
@@ -251,7 +317,7 @@
             letter-spacing: 0.01em;
             padding-left: 8px;
             font-variant-numeric: tabular-nums;
-            transition: opacity 0.4s ease;
+            transition: opacity var(--dur-pop) var(--ease);
         }
         .top-menu {
             flex-shrink: 0;
@@ -292,7 +358,7 @@
             padding: 20px 0 12px;
             min-height: 360px;
             position: relative;
-            transition: opacity 0.4s ease;
+            transition: opacity var(--dur-modal) var(--ease);
         }
         .main-visual::before {
             content: '';
@@ -306,7 +372,7 @@
             border-radius: 50%;
             filter: blur(10px);
             pointer-events: none;
-            transition: opacity 0.6s ease;
+            transition: opacity var(--dur-modal) var(--ease);
         }
         .main-visual.paused-state {
             opacity: 0.72;
@@ -355,7 +421,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            transition: opacity 0.6s ease;
+            transition: opacity var(--dur-modal) var(--ease);
         }
         .percent-wrap.fade-out {
             opacity: 0;
@@ -383,21 +449,8 @@
             -webkit-backdrop-filter: var(--blur);
             box-shadow: var(--shadow-sm);
             opacity: 0.9;
-            transition: all 0.9s var(--ease-spring);
-        }
-        @keyframes pop {
-            0% {
-                transform: translate(50%, 50%) scale(0.55);
-                opacity: 0;
-            }
-            55% {
-                transform: translate(50%, 50%) scale(1.08);
-                opacity: 1;
-            }
-            100% {
-                transform: translate(50%, 50%) scale(1);
-                opacity: 1;
-            }
+            transition: opacity var(--dur-pop) var(--ease), background var(--dur-pop) var(--ease),
+                border-color var(--dur-pop) var(--ease), box-shadow var(--dur-pop) var(--ease);
         }
         .grid-container {
             display: none;
@@ -406,7 +459,7 @@
             aspect-ratio: 20 / 10;
             padding: 4px 0;
             flex-shrink: 0;
-            transition: opacity 0.4s ease;
+            transition: opacity var(--dur-modal) var(--ease);
             position: relative;
         }
         .grid-container.active {
@@ -467,7 +520,12 @@
         .empty-state .add-trigger:hover {
             background: var(--bg-solid);
             box-shadow: var(--shadow-md);
-            transform: scale(1.04);
+        }
+        /* 位移类 hover 只在真正支持悬停的精确指针上启用（触屏点按会误触发 hover） */
+        @media (hover: hover) and (pointer: fine) {
+            .empty-state .add-trigger:hover {
+                transform: scale(1.04);
+            }
         }
         .empty-state .add-trigger:active {
             transform: scale(0.92);
@@ -490,72 +548,107 @@
             opacity: 0.6;
             user-select: none;
         }
+        /* 底部控件：和顶栏同一种语法——控件自己带材质，底下什么都没有。
+           整个界面从头到尾都是"浮在背景上的控件"（顶栏就没有任何色带和分隔线），
+           所以底部也不该出现一条横向的边把画面切成两半。
+           背景是整屏的柔和渐变，对它做模糊在视觉上等于没做，所以不铺底色也不会脏。 */
         .bottom-controls {
-            flex-shrink: 0;
-            margin-top: auto;
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 40;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 10px;
             flex-wrap: wrap;
-            padding: 10px 14px;
-            background: var(--bg-frost);
-            border: 1px solid var(--border);
-            border-top: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: 22px;
-            backdrop-filter: var(--blur);
-            -webkit-backdrop-filter: var(--blur);
-            box-shadow: var(--shadow-sm);
-            z-index: 10;
-            position: relative;
+            /* 左右内边距 = 正文列的内边距，控件与上方内容严格对齐 */
+            padding: 0 max(var(--app-pad-x), calc((100vw - var(--app-max)) / 2 + var(--app-pad-x)));
+            padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+            background: none;
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            /* 空白处不拦截点击，只有控件本身可点 */
+            pointer-events: none;
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+            /* 出现比消失慢一点：系统响应快，元素归位可以从容 */
+            transition: opacity var(--dur-modal) var(--ease), transform var(--dur-modal) var(--ease-out),
+                visibility 0s;
         }
-        /* 深色模式下底部栏顶部亮边弱化（仅底部栏） */
-        :root[data-theme="dark"] .bottom-controls {
-            border-top-color: rgba(255, 255, 255, 0.10);
+        .bottom-left,
+        .bottom-right {
+            pointer-events: auto;
         }
-        @media (prefers-color-scheme: dark) {
-            :root:not([data-theme="light"]) .bottom-controls {
-                border-top-color: rgba(255, 255, 255, 0.10);
-            }
+        .bottom-controls.bar-hidden {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(100%);
+            transition: opacity var(--dur-press) var(--ease), transform var(--dur-press) var(--ease-out),
+                visibility 0s linear var(--dur-press);
         }
+        /* 深色模式下顶部受光边由 --edge-light 自动弱化（见 :root[data-theme="dark"]） */
         /* 显示方式：iOS 26 液态玻璃分段控件（左下角） */
         .mode-segmented {
+            position: relative;
             display: inline-flex;
             align-items: center;
             gap: 2px;
-            padding: 3px;
+            padding: 4px;
             border-radius: 999px;
             background: rgba(127, 127, 127, 0.14);
-            -webkit-backdrop-filter: blur(14px) saturate(180%);
-            backdrop-filter: blur(14px) saturate(180%);
             border: 1px solid rgba(127, 127, 127, 0.18);
+        }
+        /* 会滑动的选中块：两个分段等宽，所以位移量是写死的 42px（40 宽 + 2 间距） */
+        .mode-segmented::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 40px;
+            height: 36px;
+            border-radius: 999px;
+            background: var(--bg-solid);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.05);
+            transform: translateX(0);
+            transition: transform var(--dur-pop) var(--ease-out);
+            pointer-events: none;
+        }
+        .mode-segmented.grid-active::before {
+            transform: translateX(42px);
         }
         .seg-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 34px;
-            height: 30px;
+            width: 40px;
+            height: 36px;
             border: none;
             border-radius: 999px;
             background: transparent;
             color: var(--text-muted);
             cursor: pointer;
             padding: 0;
+            position: relative;
+            z-index: 1;
             transition: transform 0.12s ease-out, color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
         }
         .seg-btn svg {
-            width: 17px;
-            height: 17px;
+            width: 19px;
+            height: 19px;
             display: block;
         }
         .seg-btn:active {
-            transform: scale(0.9);
+            transform: scale(0.92);
         }
+        /* 选中态由 .mode-segmented::before 那块会滑动的玻璃负责，按钮本身只变颜色 */
         .seg-btn.active {
             color: var(--blue);
-            background: var(--bg-solid);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.05);
         }
         /* 实际进度（右侧，低调信息式） */
         .real-time-wrap {
@@ -568,8 +661,8 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 26px;
-            height: 26px;
+            width: 32px;
+            height: 32px;
             color: var(--text-light);
             cursor: pointer;
             padding: 0;
@@ -577,15 +670,18 @@
             background: none;
             border: none;
             font-family: var(--font);
-            transition: color 0.2s ease;
+            transition: color var(--dur-pop) var(--ease), background var(--dur-pop) var(--ease);
         }
         .real-time-toggle:hover {
             color: var(--text);
+            background: var(--gray-light);
         }
         .real-time-toggle .toggle-icon {
+            width: 16px;
+            height: 16px;
             color: var(--text-muted);
             display: block;
-            transition: color 0.2s ease;
+            transition: color var(--dur-pop) var(--ease);
         }
         .real-time-toggle:hover .toggle-icon {
             color: var(--text);
@@ -598,13 +694,22 @@
             padding: 0 6px;
             white-space: nowrap;
             opacity: 0;
-            max-width: 0;
+            width: 0;
+            padding: 0;
             overflow: hidden;
-            transition: opacity 0.2s ease, max-width 0.25s ease, padding 0.25s ease;
+            transform: translateX(-6px);
+            /* 只过渡 opacity/transform（GPU）；宽度与内边距改为瞬时切换，
+               避免每帧触发布局。显示时先占位再淡入，隐藏时先淡出再收位。 */
+            transition: opacity var(--dur-press) var(--ease), transform var(--dur-press) var(--ease-out),
+                width 0s linear var(--dur-press), padding 0s linear var(--dur-press);
         }
         .real-time-display.visible {
             opacity: 1;
-            max-width: 90px;
+            width: auto;
+            padding: 0 6px;
+            transform: none;
+            transition: opacity var(--dur-press) var(--ease), transform var(--dur-press) var(--ease-out),
+                width 0s, padding 0s;
         }
         .real-time-display .value {
             color: var(--text);
@@ -617,8 +722,8 @@
             gap: 6px;
             border: none;
             border-radius: 999px;
-            padding: 8px 16px;
-            font-size: 0.82rem;
+            padding: 10px 20px;
+            font-size: 0.88rem;
             font-weight: 500;
             letter-spacing: 0.01em;
             color: var(--danger);
@@ -653,7 +758,7 @@
             margin-bottom: 18px;
             flex-shrink: 0;
             display: none;
-            animation: fadeSlide 0.35s var(--ease-spring);
+            animation: fadeSlide var(--dur-pop) var(--ease-out);
             z-index: 20;
             position: relative;
             backdrop-filter: var(--blur);
@@ -718,7 +823,7 @@
             padding: 12px 14px;
             background: var(--gray-light);
             border-radius: 14px;
-            transition: opacity 0.3s ease, pointer-events 0.3s ease;
+            transition: opacity var(--dur-pop) var(--ease);
         }
         .mode-selection.disabled {
             opacity: 0.5;
@@ -829,17 +934,20 @@
             box-shadow: var(--shadow-md);
             backdrop-filter: var(--blur);
             -webkit-backdrop-filter: var(--blur);
-            animation: menuIn 0.3s var(--ease-spring);
+            animation: menuIn var(--dur-pop) var(--ease-out);
             transform-origin: top right;
         }
+        /* 实体化入场：模糊半径与缩放一起动，玻璃像真的材料落下来，而不是单纯淡入 */
         @keyframes menuIn {
             0% {
                 opacity: 0;
-                transform: scale(0.92) translateY(-6px);
+                transform: scale(0.94) translateY(-6px);
+                backdrop-filter: blur(2px) saturate(120%);
             }
             100% {
                 opacity: 1;
                 transform: scale(1) translateY(0);
+                backdrop-filter: var(--material-thick);
             }
         }
         .menu-panel .menu-close {
@@ -915,12 +1023,13 @@
             border: 2px solid var(--border-strong);
             position: relative;
             flex-shrink: 0;
-            transition: border-color 0.15s;
+            transition: border-color var(--dur-pop) var(--ease);
         }
         .menu-option .radio.active {
             border-color: var(--blue);
         }
-        .menu-option .radio.active::after {
+        /* 选中点用 scale 弹出：从 0 缩放而不是直接出现，指尖能"看到"选择生效 */
+        .menu-option .radio::after {
             content: '';
             position: absolute;
             top: 2px;
@@ -929,6 +1038,11 @@
             height: 8px;
             border-radius: 50%;
             background: var(--blue);
+            transform: scale(0);
+            transition: transform var(--dur-pop) var(--ease-out);
+        }
+        .menu-option .radio.active::after {
+            transform: scale(1);
         }
         .menu-about {
             margin-top: 10px;
@@ -970,7 +1084,7 @@
             width: 100%;
             max-height: 82vh;
             overflow-y: auto;
-            animation: modalIn 0.4s var(--ease-spring);
+            animation: modalIn var(--dur-modal) var(--ease-out);
             box-shadow: var(--shadow-md);
             backdrop-filter: var(--blur);
             -webkit-backdrop-filter: var(--blur);
@@ -990,23 +1104,26 @@
             border: 2px solid transparent;
             background-clip: content-box;
         }
+        /* 实体化入场：模糊半径与缩放一起动（同 menuIn） */
         @keyframes modalIn {
             0% {
                 opacity: 0;
-                transform: scale(0.94) translateY(8px);
+                transform: scale(0.96) translateY(10px);
+                backdrop-filter: blur(3px) saturate(120%);
             }
             100% {
                 opacity: 1;
                 transform: scale(1) translateY(0);
+                backdrop-filter: var(--material-thick);
             }
         }
         .modal-title {
             font-size: 1.35rem;
             font-weight: 650;
-            letter-spacing: -0.015em;
+            letter-spacing: -0.018em;
             color: var(--text);
             margin-bottom: 8px;
-            line-height: 1.25;
+            line-height: 1.2;
         }
         .modal-sub {
             font-size: 0.92rem;
@@ -1040,11 +1157,6 @@
             border: 1px solid var(--border);
             border-radius: 16px;
             padding: 12px 14px 14px;
-            transition: border-color 0.15s ease, transform 0.18s var(--ease-out);
-        }
-        .mode-card:hover {
-            border-color: var(--border-strong);
-            transform: translateY(-1px);
         }
         .mode-card-header {
             display: flex;
@@ -1225,8 +1337,9 @@
             font-weight: 500;
             color: var(--text-light);
             opacity: 0;
-            transform: translateY(10px);
-            transition: opacity 0.5s ease, transform 0.5s var(--ease-spring);
+            transform: translateY(8px) scale(0.98);
+            /* 非对称：出场比入场快，系统响应要"啪"一下 */
+            transition: opacity var(--dur-press) var(--ease), transform var(--dur-press) var(--ease-out);
             pointer-events: none;
             letter-spacing: 0.02em;
             background: var(--bg-card);
@@ -1245,7 +1358,8 @@
         }
         .save-toast.visible {
             opacity: 1;
-            transform: translateY(0);
+            transform: none;
+            transition: opacity var(--dur-pop) var(--ease-out), transform var(--dur-pop) var(--ease-out);
         }
         /* ===== 完成庆祝（苹果风，克制而优雅） ===== */
         .completion-glow {
@@ -1406,10 +1520,10 @@
             margin-top: 3px;
         }
         @media (max-width: 480px) {
-            #app {
-                padding: 16px 14px 24px;
-            }
             :root {
+                --app-pad-t: 16px;
+                --app-pad-x: 14px;
+                --app-pad-b: 24px;
                 --ring-size: 180px;
                 --grid-gap: 2px;
             }
@@ -1447,9 +1561,9 @@
                 width: 100%;
             }
             .bottom-controls {
-                padding: 10px 12px;
+                /* 通栏控件：窄屏只收底部留白，左右仍与正文列对齐 */
+                padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
                 gap: 6px 10px;
-                border-radius: 18px;
             }
             .menu-panel {
                 min-width: 190px;
@@ -1523,8 +1637,10 @@
             .grid-container {
                 max-width: 260px;
             }
-            #app {
-                padding: 12px 10px 18px;
+            :root {
+                --app-pad-t: 12px;
+                --app-pad-x: 10px;
+                --app-pad-b: 18px;
             }
             .empty-footer {
                 font-size: 0.6rem;
@@ -1555,16 +1671,20 @@
             }
         }
         @media (min-width: 900px) {
+            /* 版心令牌必须挂在 :root 上：底部工具栏在 #app 之外，也要拿到同一组值 */
             :root {
                 --ring-size: 300px;
+                --app-max: 640px;
+                --app-pad-t: 32px;
+                --app-pad-x: 28px;
+                --app-pad-b: 36px;
             }
-            #app {
-                max-width: 640px;
-                padding: 32px 28px 36px;
-            }
+            /* 字号越大，字距越紧、行高越紧 */
             .task-name-display,
             .task-name-input {
                 font-size: 1.7rem;
+                letter-spacing: -0.024em;
+                line-height: 1.18;
             }
             .grid-container {
                 max-width: 540px;
@@ -1578,24 +1698,159 @@
                 font-size: clamp(3.4rem, 5vw, 4.8rem) !important;
             }
         }
+        /* ===== 材质系统 =====
+           重量编码层级：结构性的底栏最"厚"，弹窗/面板次之，小 chip 最薄。
+           每块玻璃都有：顶部受光边 + 内部一道高光 + 底部落影，让它有厚度而不是一张半透明纸。 */
+        .menu-panel,
+        .modal-content,
+        .add-panel {
+            backdrop-filter: var(--material-thick);
+            -webkit-backdrop-filter: var(--material-thick);
+            box-shadow: var(--shadow-lg), var(--inset-light);
+            border-top-color: var(--edge-light);
+            border-bottom-color: var(--edge-shade);
+        }
+        .save-toast {
+            backdrop-filter: var(--material-thin);
+            -webkit-backdrop-filter: var(--material-thin);
+            box-shadow: var(--shadow-sm), var(--inset-light);
+            border-top-color: var(--edge-light);
+        }
+        .menu-panel,
+        .modal-content {
+            border-top-color: var(--edge-light);
+        }
+        .mode-segmented,
+        .empty-state .add-trigger {
+            backdrop-filter: var(--material-regular);
+            -webkit-backdrop-filter: var(--material-regular);
+        }
+        .percent-tag {
+            backdrop-filter: var(--material-thin);
+            -webkit-backdrop-filter: var(--material-thin);
+        }
+        /* 弹窗/菜单的"实体化"入场在各自的 @keyframes 里定义（见 menuIn / modalIn） */
+        /* 遮罩层跟着弹窗一起淡入（原来是 display 硬切） */
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(14px) saturate(120%);
+            -webkit-backdrop-filter: blur(14px) saturate(120%);
+        }
+        /* 主按钮：玻璃按钮也该有受光边 */
+        .add-actions .btn-primary,
+        .auth-submit {
+            box-shadow: 0 6px 18px rgba(0, 122, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+        }
+
+        /* .mode-card 是纯展示卡片，原先的 hover 位移+描边变化会暗示"可点击"，已删除 */
+
+        /* ===== 交互反馈 & 键盘可达性 ===== */
+        /* 键盘焦点环：只在键盘操作时出现，不影响鼠标用户 */
+        .icon-button:focus-visible,
+        .auth-button:focus-visible,
+        .seg-btn:focus-visible,
+        .real-time-toggle:focus-visible,
+        .reset-capsule:focus-visible,
+        .add-actions .btn:focus-visible,
+        .menu-close:focus-visible,
+        .menu-option:focus-visible,
+        .modal-close button:focus-visible,
+        .auth-submit:focus-visible,
+        .auth-switch:focus-visible,
+        .empty-state .add-trigger:focus-visible,
+        .history-item .h-del:focus-visible {
+            outline: 2px solid var(--blue);
+            outline-offset: 2px;
+        }
+        /* 整行菜单项/关闭按钮的按压反馈：iOS 的做法是背景高亮，不是缩放 */
+        .menu-option:active,
+        .menu-panel .menu-close:active,
+        .modal-close button:active {
+            background: var(--gray-light);
+        }
+        .menu-about .menu-option.danger:active {
+            background: var(--danger-pale);
+        }
+        .history-item .h-del:active {
+            background: var(--danger-pale);
+            color: var(--danger);
+        }
+        .auth-switch:active {
+            color: var(--text-light);
+        }
+
+        /* 减弱动效 ≠ 零动效：位移类入场全部去掉，保留有助理解的淡入淡出、颜色过渡与按压反馈 */
         @media (prefers-reduced-motion: reduce) {
-            *,
-            *::before,
-            *::after {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
+            .menu-panel,
+            .modal-content,
+            .add-panel {
+                animation: none !important;
+            }
+            /* 完成时的光晕/涟漪是纯装饰性大位移，直接不出现 */
+            .completion-glow,
+            .completion-ripple {
+                display: none !important;
+            }
+            .save-toast,
+            .real-time-display {
+                transform: none !important;
+            }
+            .bottom-controls.bar-hidden {
+                transform: none !important;
+            }
+            .empty-state .add-trigger,
+            .reset-capsule,
+            .seg-btn,
+            .icon-button,
+            .add-actions .btn,
+            .auth-submit {
+                transition: background var(--dur-press) var(--ease), color var(--dur-press) var(--ease),
+                    border-color var(--dur-press) var(--ease) !important;
+            }
+            .empty-state .add-trigger:active,
+            .reset-capsule:active,
+            .seg-btn:active,
+            .icon-button:active,
+            .add-actions .btn:active,
+            .auth-submit:active {
+                transform: none !important;
             }
         }
         @media (prefers-reduced-transparency: reduce) {
-            .bottom-controls,
             .add-panel,
             .menu-panel,
             .modal-content,
             .save-toast,
             .percent-tag,
+            .mode-segmented,
             .empty-state .add-trigger,
             .main-visual.paused-state .ring-container::after {
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+                background: var(--bg-solid) !important;
+            }
+        }
+        /* 提高对比度：材质转实底并给出明确描边 */
+        @media (prefers-contrast: more) {
+            :root {
+                --border: rgba(0, 0, 0, 0.28);
+                --border-strong: rgba(0, 0, 0, 0.45);
+                --text-light: #48484a;
+                --text-muted: #525254;
+            }
+            :root[data-theme="dark"] {
+                --border: rgba(255, 255, 255, 0.34);
+                --border-strong: rgba(255, 255, 255, 0.5);
+                --text-light: #d8d8dc;
+                --text-muted: #b8b8be;
+            }
+            .add-panel,
+            .menu-panel,
+            .modal-content,
+            .save-toast,
+            .percent-tag,
+            .mode-segmented,
+            .empty-state .add-trigger {
                 backdrop-filter: none !important;
                 -webkit-backdrop-filter: none !important;
                 background: var(--bg-solid) !important;
@@ -1692,29 +1947,32 @@
                 <div class="grid-inner" id="gridInner"></div>
             </div>
         </div>
+    </div>
 
-        <div class="bottom-controls">
-            <div class="bottom-left">
-                <div class="mode-segmented" id="modeSegmented" role="group" aria-label="显示方式">
-                    <button class="seg-btn active" id="modeRingRadio" data-mode="ring" aria-label="圆环显示">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"></circle></svg>
-                    </button>
-                    <button class="seg-btn" id="modeGridRadio" data-mode="grid" aria-label="方格显示">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.6"></rect><rect x="13" y="4" width="7" height="7" rx="1.6"></rect><rect x="4" y="13" width="7" height="7" rx="1.6"></rect><rect x="13" y="13" width="7" height="7" rx="1.6"></rect></svg>
-                    </button>
+    <!-- 底部工具栏放在 #app 之外：它是通栏的界面 chrome，
+         而 #app 在弹窗打开时会被整体"推后"（transform），
+         若留在里面，transform 会成为 fixed 的包含块，通栏就失效了 -->
+    <div class="bottom-controls">
+        <div class="bottom-left">
+            <div class="mode-segmented" id="modeSegmented" role="group" aria-label="显示方式">
+                <button class="seg-btn active" id="modeRingRadio" data-mode="ring" aria-label="圆环显示">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"></circle></svg>
+                </button>
+                <button class="seg-btn" id="modeGridRadio" data-mode="grid" aria-label="方格显示">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.6"></rect><rect x="13" y="4" width="7" height="7" rx="1.6"></rect><rect x="4" y="13" width="7" height="7" rx="1.6"></rect><rect x="13" y="13" width="7" height="7" rx="1.6"></rect></svg>
+                </button>
+            </div>
+        </div>
+        <div class="bottom-right">
+            <div class="real-time-wrap">
+                <button class="real-time-toggle" id="realTimeToggle" aria-label="实际进度">
+                    <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 3a9 9 0 0 1 9 9h-9z"></path></svg>
+                </button>
+                <div id="realTimeDisplay" class="real-time-display">
+                    <span class="value" id="realTimeValue"></span>
                 </div>
             </div>
-            <div class="bottom-right">
-                <div class="real-time-wrap">
-                    <button class="real-time-toggle" id="realTimeToggle" aria-label="实际进度">
-                        <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 3a9 9 0 0 1 9 9h-9z"></path></svg>
-                    </button>
-                    <div id="realTimeDisplay" class="real-time-display">
-                        <span class="value" id="realTimeValue"></span>
-                    </div>
-                </div>
-                <button class="reset-capsule" id="resetCapsuleBtn" style="display:none">重置</button>
-            </div>
+            <button class="reset-capsule" id="resetCapsuleBtn" style="display:none">重置</button>
         </div>
     </div>
 
@@ -1776,7 +2034,7 @@
                 </div>
             </div>
 
-            <div class="modal-version">v.1.3.1</div>
+            <div class="modal-version">v.1.3.2</div>
 
             <div class="modal-close">
                 <button id="infoCloseBtn">关闭</button>
@@ -1916,6 +2174,23 @@
             function cssVar(name) {
                 return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
             }
+
+            // 主题色缓存：getComputedStyle 会强制样式重算，不能放在每帧的绘制路径里
+            let ringThemeCache = null;
+            function ringTheme() {
+                if (!ringThemeCache) {
+                    ringThemeCache = {
+                        track: cssVar('--gray-light'),
+                        from: cssVar('--blue'),
+                        to: cssVar('--blue-light'),
+                    };
+                }
+                return ringThemeCache;
+            }
+            function invalidateRingTheme() {
+                ringThemeCache = null;
+                ringMetrics.key = '';
+            }
             // ===== DOM 引用 =====
             const $ = id => document.getElementById(id);
             const dom = {
@@ -1954,6 +2229,7 @@
                 bottomControls: document.querySelector('.bottom-controls'),
                 modeRingRadio: $('modeRingRadio'),
                 modeGridRadio: $('modeGridRadio'),
+                modeSegmented: $('modeSegmented'),
                 modeSelection: $('modeSelection'),
                 modeRadios: document.querySelectorAll('input[name="mode"]'),
                 infoBtn: $('infoBtn'),
@@ -1983,6 +2259,20 @@
 
             // ===== 外观（浅色 / 深色，默认跟随系统） =====
             const appearanceOptions = document.querySelectorAll('.appearance-option');
+            const systemDarkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+            function systemPrefersDark() {
+                return !!(systemDarkQuery && systemDarkQuery.matches);
+            }
+
+            // 偏好是三个值（light / dark / system），但菜单只有两个选项，
+            // 所以选中态看的是"当前实际生效的明暗"——跟随系统时就是系统那一边。
+            // 这样任何情况下都恰好有一项是选中的。
+            function effectiveAppearance(pref) {
+                if (pref === 'dark' || pref === 'light') return pref;
+                return systemPrefersDark() ? 'dark' : 'light';
+            }
+
             function applyAppearance(pref) {
                 pref = pref || 'system';
                 if (pref === 'dark') {
@@ -1992,9 +2282,12 @@
                 } else {
                     document.documentElement.removeAttribute('data-theme');
                 }
+                // 主题变了，画布上的渐变/track 颜色缓存要作废
+                invalidateRingTheme();
                 try { localStorage.setItem(CONFIG.APPEARANCE_KEY, pref); } catch (e) {}
+                const effective = effectiveAppearance(pref);
                 appearanceOptions.forEach(function(el) {
-                    el.querySelector('.radio').classList.toggle('active', el.dataset.appearance === pref);
+                    el.querySelector('.radio').classList.toggle('active', el.dataset.appearance === effective);
                 });
             }
             function loadAppearance() {
@@ -2002,6 +2295,16 @@
                 try { pref = localStorage.getItem(CONFIG.APPEARANCE_KEY) || 'system'; } catch (e) {}
                 if (pref !== 'dark' && pref !== 'light' && pref !== 'system') pref = 'system';
                 applyAppearance(pref);
+            }
+            // 跟随系统时，系统明暗切换要同步画布缓存与菜单里的选中项
+            if (systemDarkQuery) {
+                const onSchemeChange = function() {
+                    let pref = 'system';
+                    try { pref = localStorage.getItem(CONFIG.APPEARANCE_KEY) || 'system'; } catch (e) {}
+                    applyAppearance(pref);
+                };
+                if (systemDarkQuery.addEventListener) systemDarkQuery.addEventListener('change', onSchemeChange);
+                else if (systemDarkQuery.addListener) systemDarkQuery.addListener(onSchemeChange);
             }
             // ===== 显示保存提示（右下角淡入淡出） =====
             let toastTimer = null;
@@ -2167,81 +2470,115 @@
             }
 
             // ===== 绘图 =====
-            function drawRing(progress) {
+            // 尺寸/渐变只在真正变化时重建：原来每帧都会重设 canvas.width（重新分配位图）、
+            // 重新 getBoundingClientRect（强制布局）、重新建渐变并读 3 次 CSS 变量。
+            const ringMetrics = { key: '', w: 0, h: 0, cx: 0, cy: 0, radius: 0, lineWidth: 0, grad: null };
+
+            function syncRingMetrics() {
                 const canvas = dom.ringCanvas;
                 const rect = canvas.parentElement.getBoundingClientRect();
                 const size = Math.min(rect.width || 400, rect.height || 400);
                 const dpr = window.devicePixelRatio || 1;
                 const logicalSize = Math.min(size, 400);
-                canvas.width = logicalSize * dpr;
-                canvas.height = logicalSize * dpr;
-                canvas.style.width = logicalSize + 'px';
-                canvas.style.height = logicalSize + 'px';
+                const theme = ringTheme();
+                const key = logicalSize + 'x' + dpr + '|' + theme.from + theme.to;
+
+                if (key === ringMetrics.key && ringMetrics.grad) return ringMetrics;
 
                 const ctx = canvas.getContext('2d');
-                const w = canvas.width,
-                    h = canvas.height;
-                const cx = w / 2,
-                    cy = h / 2;
-                const radius = Math.min(w, h) * 0.5 * 0.82;
-                const lineWidth = Math.max(12, radius * 0.18);
+                const bw = Math.round(logicalSize * dpr);
+                if (canvas.width !== bw || canvas.height !== bw) {
+                    canvas.width = bw;
+                    canvas.height = bw;
+                    canvas.style.width = logicalSize + 'px';
+                    canvas.style.height = logicalSize + 'px';
+                }
 
-                ctx.clearRect(0, 0, w, h);
+                ringMetrics.key = key;
+                ringMetrics.w = bw;
+                ringMetrics.h = bw;
+                ringMetrics.cx = bw / 2;
+                ringMetrics.cy = bw / 2;
+                ringMetrics.radius = Math.min(bw, bw) * 0.5 * 0.82;
+                ringMetrics.lineWidth = Math.max(12, ringMetrics.radius * 0.18);
+                // 渐变与画布位图绑定，尺寸变化时必须重建
+                ringMetrics.grad = ctx.createLinearGradient(0, 0, bw, bw);
+                ringMetrics.grad.addColorStop(0, theme.from);
+                ringMetrics.grad.addColorStop(1, theme.to);
+                return ringMetrics;
+            }
+
+            function drawRing(progress) {
+                const m = syncRingMetrics();
+                const ctx = dom.ringCanvas.getContext('2d');
+                const theme = ringTheme();
+
+                ctx.clearRect(0, 0, m.w, m.h);
 
                 ctx.beginPath();
-                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-                ctx.strokeStyle = cssVar('--gray-light');
-                ctx.lineWidth = lineWidth;
+                ctx.arc(m.cx, m.cy, m.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = theme.track;
+                ctx.lineWidth = m.lineWidth;
                 ctx.lineCap = 'round';
                 ctx.stroke();
 
                 const clamped = Math.min(Math.max(progress, 0), 1);
+                if (clamped <= 0) return;
+
                 const startAngle = -Math.PI / 2;
                 const endAngle = startAngle + Math.PI * 2 * clamped;
 
                 ctx.beginPath();
-                ctx.arc(cx, cy, radius, startAngle, endAngle);
-                const grad = ctx.createLinearGradient(0, 0, w, h);
-                grad.addColorStop(0, cssVar('--blue'));
-                grad.addColorStop(1, cssVar('--blue-light'));
-                ctx.strokeStyle = grad;
-                ctx.lineWidth = lineWidth;
+                ctx.arc(m.cx, m.cy, m.radius, startAngle, endAngle);
+                ctx.strokeStyle = m.grad;
+                ctx.lineWidth = m.lineWidth;
                 ctx.lineCap = 'round';
                 ctx.shadowColor = 'rgba(10, 132, 255, 0.35)';
-                ctx.shadowBlur = lineWidth * 0.5;
+                ctx.shadowBlur = m.lineWidth * 0.5;
                 ctx.stroke();
                 ctx.shadowBlur = 0;
 
                 if (clamped >= 1) {
                     ctx.beginPath();
-                    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-                    ctx.strokeStyle = cssVar('--blue');
-                    ctx.lineWidth = lineWidth * 0.3;
+                    ctx.arc(m.cx, m.cy, m.radius, 0, Math.PI * 2);
+                    ctx.strokeStyle = theme.from;
+                    ctx.lineWidth = m.lineWidth * 0.3;
                     ctx.globalAlpha = 0.25;
                     ctx.stroke();
                     ctx.globalAlpha = 1;
                 }
             }
 
+            // 网格：缓存格子列表与当前填充数，只改动真正变化的格子
+            // （原来是每帧遍历 200 个格子做 classList 读写 + querySelectorAll）
+            let gridCells = null;
+            let gridFilled = -1;
+
             function buildGrid() {
                 dom.gridInner.innerHTML = '';
                 const total = CONFIG.GRID_COLS * CONFIG.GRID_ROWS;
+                const frag = document.createDocumentFragment();
                 for (let i = 0; i < total; i++) {
                     const d = document.createElement('div');
                     d.className = 'grid-cell';
-                    dom.gridInner.appendChild(d);
+                    frag.appendChild(d);
                 }
+                dom.gridInner.appendChild(frag);
+                gridCells = dom.gridInner.querySelectorAll('.grid-cell');
+                gridFilled = -1;
             }
 
             function updateGrid(progress) {
-                const cells = dom.gridInner.querySelectorAll('.grid-cell');
-                const total = cells.length;
-                const filled = Math.round(progress * total);
-                const clamped = Math.min(Math.max(filled, 0), total);
-                cells.forEach((c, i) => {
-                    if (i < clamped) c.classList.add('filled');
-                    else c.classList.remove('filled');
-                });
+                if (!gridCells || !gridCells.length) return;
+                const total = gridCells.length;
+                const clamped = Math.min(Math.max(Math.round(progress * total), 0), total);
+                if (clamped === gridFilled) return;
+                if (clamped > gridFilled) {
+                    for (let i = Math.max(gridFilled, 0); i < clamped; i++) gridCells[i].classList.add('filled');
+                } else {
+                    for (let i = clamped; i < gridFilled; i++) gridCells[i].classList.remove('filled');
+                }
+                gridFilled = clamped;
             }
 
             // ===== 核心更新 =====
@@ -2286,10 +2623,17 @@
             function renderAll(x, p) {
                 drawRing(p);
                 updateGrid(p);
-                dom.percentText.textContent = '';
-                dom.percentTag.classList.remove('completed-centered');
-                dom.percentTag.style.display = 'none';
-                dom.realTimeValue.textContent = state.totalDuration > 0 ? Math.round(Math.min(state.elapsed / state.totalDuration, 1) * 100) + '%' : '';
+                // 下面这些都是「状态派生」的写入，每帧无条件写会持续触发样式重算。
+                // 统一改成先读真实 DOM 再决定是否写：读 inline style / classList 不触发布局，
+                // 既省掉无效写入，也不会因为别处直接改过 DOM 而缓存失效。
+                if (dom.percentText.textContent !== '') dom.percentText.textContent = '';
+                if (dom.percentTag.classList.contains('completed-centered')) dom.percentTag.classList.remove('completed-centered');
+                if (dom.percentTag.style.display !== 'none') dom.percentTag.style.display = 'none';
+
+                const percent = state.totalDuration > 0 ?
+                    Math.round(Math.min(state.elapsed / state.totalDuration, 1) * 100) + '%' : '';
+                if (dom.realTimeValue.textContent !== percent) dom.realTimeValue.textContent = percent;
+
                 updateTaskInfoDisplay();
                 updatePauseButton();
                 updateRealTimeVisibility();
@@ -2298,7 +2642,12 @@
             }
 
             function updateBottomControls() {
-                dom.bottomControls.classList.toggle('hidden', !(state.totalDuration > 0));
+                const shouldShow = state.totalDuration > 0;
+                if (dom.bottomControls.classList.contains('bar-hidden') === shouldShow) {
+                    dom.bottomControls.classList.toggle('bar-hidden', !shouldShow);
+                    // 工具栏通栏悬浮在底部，出现时正文列要给它让出高度
+                    dom.app.classList.toggle('has-bottom-bar', shouldShow);
+                }
             }
 
             function formatDuration(s) {
@@ -2316,13 +2665,19 @@
 
             // 未开始任务（添加任务界面）时隐藏左上角占位；任务进行中照常显示
             function setTaskInfoVisible(visible) {
-                dom.taskInfo.classList.toggle('is-empty', !visible);
+                if (dom.taskInfo.classList.contains('is-empty') !== !visible) {
+                    dom.taskInfo.classList.toggle('is-empty', !visible);
+                }
+            }
+
+            function setText(el, text) {
+                if (el.textContent !== text) el.textContent = text;
             }
 
             function resetTaskInfoDisplay() {
-                dom.taskNameDisplay.textContent = '';
-                dom.taskDurationDisplay.textContent = '';
-                dom.taskNameDisplay.classList.add('empty');
+                setText(dom.taskNameDisplay, '');
+                setText(dom.taskDurationDisplay, '');
+                if (!dom.taskNameDisplay.classList.contains('empty')) dom.taskNameDisplay.classList.add('empty');
                 setTaskInfoVisible(false);
             }
 
@@ -2335,26 +2690,35 @@
                 }
 
                 if (isEditing) {
-                    dom.taskDurationDisplay.textContent = formatDuration(state.totalDuration);
+                    setText(dom.taskDurationDisplay, formatDuration(state.totalDuration));
                     return;
                 }
-                const name = state.taskName.trim() || '未命名任务';
-                dom.taskNameDisplay.textContent = name;
-                dom.taskNameDisplay.classList.toggle('empty', !state.taskName.trim());
-                dom.taskDurationDisplay.textContent = formatDuration(state.totalDuration);
+                const raw = state.taskName.trim();
+                setText(dom.taskNameDisplay, raw || '未命名任务');
+                if (dom.taskNameDisplay.classList.contains('empty') !== !raw) {
+                    dom.taskNameDisplay.classList.toggle('empty', !raw);
+                }
+                setText(dom.taskDurationDisplay, formatDuration(state.totalDuration));
             }
 
             function updatePauseButton() {
                 // 暂停/继续入口已移除；仅完成态显示"重置"胶囊
-                dom.resetCapsuleBtn.style.display = state.isCompleted ? '' : 'none';
+                const want = state.isCompleted ? '' : 'none';
+                if (dom.resetCapsuleBtn.style.display !== want) dom.resetCapsuleBtn.style.display = want;
             }
 
             function updatePauseVisual() {
-                dom.mainVisual.classList.toggle('paused-state', !state.isCompleted && state.isPaused);
+                const want = !state.isCompleted && state.isPaused;
+                if (dom.mainVisual.classList.contains('paused-state') !== want) {
+                    dom.mainVisual.classList.toggle('paused-state', want);
+                }
             }
 
             function updateRealTimeVisibility() {
-                dom.realTimeDisplay.classList.toggle('visible', state.showRealTime);
+                const want = !!state.showRealTime;
+                if (dom.realTimeDisplay.classList.contains('visible') !== want) {
+                    dom.realTimeDisplay.classList.toggle('visible', want);
+                }
             }
 
             // ===== 模式切换 =====
@@ -2378,10 +2742,16 @@
                     updateGrid(p);
                 }
 
+                updateModeButtons(mode);
+                saveState();
+            }
+
+            // 分段控件的选中态：按钮只负责颜色，滑动的玻璃块由容器上的 grid-active 驱动
+            function updateModeButtons(mode) {
                 document.querySelectorAll('.seg-btn[data-mode]').forEach(el => el.classList.remove('active'));
                 if (mode === 'ring') dom.modeRingRadio.classList.add('active');
                 else dom.modeGridRadio.classList.add('active');
-                saveState();
+                if (dom.modeSegmented) dom.modeSegmented.classList.toggle('grid-active', mode === 'grid');
             }
 
             // ===== 暂停/继续 =====
@@ -3153,6 +3523,18 @@
                     if (e.target === this) {
                         this.classList.remove('open');
                     }
+                });
+                // 菜单项是 div，键盘用户原本完全无法触达：补 role/tabindex，并用 Enter/Space 触发点击
+                dom.menuOverlay.querySelectorAll('.menu-option').forEach(function(el) {
+                    el.setAttribute('role', 'button');
+                    el.setAttribute('tabindex', '0');
+                });
+                dom.menuOverlay.addEventListener('keydown', function(e) {
+                    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Space') return;
+                    const option = e.target && e.target.closest ? e.target.closest('.menu-option') : null;
+                    if (!option) return;
+                    e.preventDefault();
+                    option.click();
                 });
 
                 // ---- 菜单选项: 模式 ----

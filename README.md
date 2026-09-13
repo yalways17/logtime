@@ -44,6 +44,8 @@ LogTime 提供三种时间模型：
 ## 🎨 界面设计
 Apple 风格（WWDC 流体界面）：毛玻璃材质、系统字体栈、spring 弹簧缓动、iOS 蓝强调色，支持明暗双模式。
 
+材质按面的大小分档（小控件薄、面板厚），每块玻璃带受光边与内部高光；动效统一到一套缓动与时长令牌，并遵循 `prefers-reduced-motion` / `prefers-reduced-transparency` / `prefers-contrast`。
+
 ## 🌐 在线体验
 [LogTime](https://yalways17.github.io/logtime/)
 
@@ -51,4 +53,4 @@ Apple 风格（WWDC 流体界面）：毛玻璃材质、系统字体栈、spring
 HTML
 
 ---
-**LogTime · v.1.3.1**
+**LogTime · v.1.3.2**
