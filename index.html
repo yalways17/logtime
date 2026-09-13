@@ -188,6 +188,11 @@
             min-width: 0;
             padding-right: 12px;
         }
+        /* 未开始任务（添加任务界面）时：隐藏左上角「未命名任务」占位与下方时长横杠。
+           用 visibility 而非 display，保留占位宽度，右上角菜单不会跑到左边 */
+        .task-info.is-empty {
+            visibility: hidden;
+        }
         .task-name-wrap {
             position: relative;
             margin-bottom: 2px;
@@ -253,6 +258,7 @@
             display: flex;
             align-items: center;
             gap: 2px;
+            margin-left: auto;
         }
         .top-menu .icon-button svg {
             width: 23px;
@@ -1602,12 +1608,12 @@
 <body>
     <div id="app">
         <header class="top-bar">
-            <div class="task-info">
+            <div class="task-info is-empty" id="taskInfo">
                 <div class="task-name-wrap" id="taskNameWrap">
-                    <div id="taskNameDisplay" class="task-name-display empty">未命名任务</div>
+                    <div id="taskNameDisplay" class="task-name-display empty"></div>
                     <input type="text" id="taskNameInput" class="task-name-input hidden" maxlength="60" />
                 </div>
-                <div id="taskDurationDisplay" class="task-duration">—</div>
+                <div id="taskDurationDisplay" class="task-duration"></div>
             </div>
             <div class="top-menu">
                 <button class="icon-button" id="infoBtn" aria-label="关于 LogTime">
@@ -1770,7 +1776,7 @@
                 </div>
             </div>
 
-            <div class="modal-version">v.1.3.0</div>
+            <div class="modal-version">v.1.3.1</div>
 
             <div class="modal-close">
                 <button id="infoCloseBtn">关闭</button>
@@ -1914,6 +1920,7 @@
             const $ = id => document.getElementById(id);
             const dom = {
                 app: $('app'),
+                taskInfo: $('taskInfo'),
                 taskNameDisplay: $('taskNameDisplay'),
                 taskNameInput: $('taskNameInput'),
                 taskNameWrap: $('taskNameWrap'),
@@ -2307,16 +2314,34 @@
                 return Math.round(s) + ' 秒';
             }
 
+            // 未开始任务（添加任务界面）时隐藏左上角占位；任务进行中照常显示
+            function setTaskInfoVisible(visible) {
+                dom.taskInfo.classList.toggle('is-empty', !visible);
+            }
+
+            function resetTaskInfoDisplay() {
+                dom.taskNameDisplay.textContent = '';
+                dom.taskDurationDisplay.textContent = '';
+                dom.taskNameDisplay.classList.add('empty');
+                setTaskInfoVisible(false);
+            }
+
             function updateTaskInfoDisplay() {
+                const hasTask = state.totalDuration > 0;
+                setTaskInfoVisible(hasTask);
+                if (!hasTask) {
+                    resetTaskInfoDisplay();
+                    return;
+                }
+
                 if (isEditing) {
-                    dom.taskDurationDisplay.textContent = state.totalDuration > 0 ? formatDuration(state.totalDuration) :
-                        '—';
+                    dom.taskDurationDisplay.textContent = formatDuration(state.totalDuration);
                     return;
                 }
                 const name = state.taskName.trim() || '未命名任务';
                 dom.taskNameDisplay.textContent = name;
                 dom.taskNameDisplay.classList.toggle('empty', !state.taskName.trim());
-                dom.taskDurationDisplay.textContent = state.totalDuration > 0 ? formatDuration(state.totalDuration) : '—';
+                dom.taskDurationDisplay.textContent = formatDuration(state.totalDuration);
             }
 
             function updatePauseButton() {
@@ -2869,8 +2894,7 @@
                 dom.gridContainer.style.display = 'none';
                 dom.gridContainer.classList.remove('active');
                 dom.percentTag.style.display = 'none';
-                dom.taskNameDisplay.textContent = '未命名任务';
-                dom.taskDurationDisplay.textContent = '—';
+                resetTaskInfoDisplay();
                 dom.resetCapsuleBtn.style.display = 'none';
                 dom.realTimeValue.textContent = '';
                 dom.percentText.textContent = '';
@@ -3049,8 +3073,7 @@
                 dom.gridContainer.style.display = 'none';
                 dom.gridContainer.classList.remove('active');
                 dom.percentTag.style.display = 'none';
-                dom.taskNameDisplay.textContent = '未命名任务';
-                dom.taskDurationDisplay.textContent = '—';
+                resetTaskInfoDisplay();
                 dom.resetCapsuleBtn.style.display = 'none';
 
                 state.mode = 'ring';
