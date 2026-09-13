@@ -159,16 +159,24 @@
             scrollbar-width: thin;
             scrollbar-color: var(--gray) transparent;
         }
-        /* html 定高、body 用 min-height：body 要跟着内容长高，页面才能正常滚动 */
+        /* ===== 视口固定：页面本身永不滚动 =====
+           和桌面端一样，整个应用就是一屏，内容自适应塞进去，而不是让用户上下滑。
+           只写 overflow: hidden 会把放不下的内容直接裁掉，所以配合三件事：
+           1) #app 定高为一屏，内部用 flex 分配空间，main-visual 允许收缩
+           2) 环形/方格的尺寸跟着视口高度走（min(px, vh)），屏幕矮就自动变小
+           3) 放不下的面板（添加任务、弹窗）改为面板内部滚动，而不是把整页撑长 */
         html {
             height: 100%;
-            /* 画布底色：滚过头（overscroll）时露出的就是它，
-               取渐变的中段色，所以任何情况下都不会出现割裂的色块 */
+            overflow: hidden;
+            overscroll-behavior: none;
+            /* 画布底色：取渐变的中段色，任何情况下都不会出现割裂的色块 */
             background-color: var(--bg);
             transition: background-color var(--dur-modal) var(--ease);
         }
         body {
-            min-height: 100%;
+            height: 100%;
+            overflow: hidden;
+            overscroll-behavior: none;
             background: none;
             color: var(--text);
             font-family: var(--font);
@@ -261,10 +269,13 @@
             max-width: var(--app-max);
             margin: 0 auto;
             padding: var(--app-pad-t) var(--app-pad-x) calc(var(--app-pad-b) + env(safe-area-inset-bottom, 0px));
-            min-height: 100vh;
+            /* 一屏定高：100dvh 跟着地址栏收放走，所以永远正好是一屏，既不留缝也不会溢出 */
+            height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
             position: relative;
+            overflow: hidden;
         }
         /* 底部控件出现时，正文列多留出它的高度，内容不会被压在控件下面 */
         #app.has-bottom-bar {
@@ -383,13 +394,15 @@
             background: var(--blue-pale);
         }
         .main-visual {
-            flex: 1;
+            /* flex: 1 之外还要 min-height: 0，否则它的 min-height: 360px 会顶住不让收缩，
+               在矮屏幕（手机横屏）上就会把页面撑出视口 */
+            flex: 1 1 auto;
+            min-height: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 20px 0 12px;
-            min-height: 360px;
             position: relative;
             transition: opacity var(--dur-modal) var(--ease);
         }
@@ -435,8 +448,13 @@
         .ring-container {
             position: relative;
             width: var(--ring-size);
-            height: var(--ring-size);
-            flex-shrink: 0;
+            /* 跟着可用空间自动缩：aspect-ratio 保证始终是正方形，
+               max-width/height 保证再矮的屏幕也塞得下，不用逐档写 vh 估算 */
+            aspect-ratio: 1 / 1;
+            height: auto;
+            max-width: 100%;
+            max-height: 100%;
+            flex-shrink: 1;
         }
         #ringCanvas {
             width: 100%;
@@ -490,8 +508,11 @@
             width: 100%;
             max-width: 420px;
             aspect-ratio: 20 / 10;
+            /* 同样按可用高度收：方格是 2:1，矮屏幕上靠 max-height 缩回去 */
+            max-height: 100%;
+            height: auto;
             padding: 4px 0;
-            flex-shrink: 0;
+            flex-shrink: 1;
             transition: opacity var(--dur-modal) var(--ease);
             position: relative;
         }
@@ -794,7 +815,11 @@
             border-radius: var(--radius-lg);
             padding: 22px 22px 20px;
             margin-bottom: 18px;
-            flex-shrink: 0;
+            /* 一屏塞不下时，由面板自己内部滚动，而不是把整页撑长（页面本身是锁死不滚的） */
+            flex-shrink: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
             display: none;
             animation: fadeSlide var(--dur-pop) var(--ease-out);
             z-index: 20;
@@ -1736,6 +1761,68 @@
             }
             .percent-tag.completed-centered {
                 font-size: clamp(3.4rem, 5vw, 4.8rem) !important;
+            }
+        }
+        /* ===== 矮屏幕（手机横屏、分屏窗口）=====
+           页面是锁死不滚的，所以这里必须把竖向空间真的省出来，
+           否则内容会被 overflow: hidden 裁掉。 */
+        @media (max-height: 560px) {
+            :root {
+                --app-pad-t: 10px;
+                --app-pad-b: 12px;
+                --ring-size: 240px;
+            }
+            #app.has-bottom-bar {
+                --app-pad-b: 74px;
+            }
+            .top-bar {
+                min-height: 42px;
+                padding: 2px 6px 6px;
+            }
+            .task-name-display,
+            .task-name-input {
+                font-size: 1.15rem;
+                min-height: 1.9rem;
+                padding: 2px 8px;
+            }
+            .main-visual {
+                padding: 4px 0 2px;
+            }
+            .empty-state {
+                padding-top: 10px;
+            }
+            .empty-state .add-trigger {
+                width: 58px;
+                height: 58px;
+            }
+            .empty-state .add-trigger svg {
+                width: 26px;
+                height: 26px;
+            }
+            .empty-state .empty-hint {
+                margin-top: 8px;
+            }
+            .add-panel {
+                padding: 14px 16px;
+                margin-bottom: 10px;
+            }
+            .add-panel .panel-title {
+                margin-bottom: 10px;
+            }
+            .add-field {
+                margin-bottom: 9px;
+            }
+            .add-field input,
+            .add-field select {
+                padding: 8px 12px;
+            }
+            .mode-selection {
+                margin-top: 9px;
+                margin-bottom: 10px;
+                padding: 9px 12px;
+            }
+            .add-actions {
+                margin-top: 10px;
             }
         }
         /* ===== 材质系统 =====
