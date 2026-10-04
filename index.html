@@ -72,6 +72,8 @@
             --mini-glow: rgba(242, 231, 255, 0.22);
             --mini-stripe: rgba(233, 185, 216, 0.30);
             --mini-dotline: rgba(242, 231, 255, 0.55);
+            --mini-rail: rgba(242, 231, 255, 0.20);
+            --mini-dot-border: #f2e7ff;
             --mini-shadow: rgba(4, 2, 16, 0.45);
             /* 版心 */
             --app-max: 640px;
@@ -136,6 +138,8 @@
             --mini-glow: rgba(103, 174, 230, 0.28);
             --mini-stripe: rgba(130, 148, 175, 0.35);
             --mini-dotline: rgba(130, 148, 175, 0.55);
+            --mini-rail: rgba(130, 148, 175, 0.20);
+            --mini-dot-border: #ffffff;
             --mini-shadow: rgba(103, 174, 230, 0.30);
             color-scheme: light;
         }
@@ -181,6 +185,8 @@
             --mini-glow: rgba(80, 160, 220, 0.28);
             --mini-stripe: rgba(130, 148, 175, 0.35);
             --mini-dotline: rgba(130, 148, 175, 0.55);
+            --mini-rail: rgba(130, 148, 175, 0.20);
+            --mini-dot-border: #ffffff;
             --mini-shadow: rgba(80, 160, 220, 0.30);
             color-scheme: light;
         }
@@ -226,6 +232,8 @@
             --mini-glow: rgba(232, 236, 255, 0.22);
             --mini-stripe: rgba(170, 182, 230, 0.30);
             --mini-dotline: rgba(232, 236, 255, 0.55);
+            --mini-rail: rgba(232, 236, 255, 0.20);
+            --mini-dot-border: #e8ecff;
             --mini-shadow: rgba(4, 6, 18, 0.45);
             color-scheme: dark;
         }
@@ -271,6 +279,8 @@
             --mini-glow: rgba(239, 230, 255, 0.22);
             --mini-stripe: rgba(184, 166, 224, 0.30);
             --mini-dotline: rgba(239, 230, 255, 0.55);
+            --mini-rail: rgba(239, 230, 255, 0.20);
+            --mini-dot-border: #efe6ff;
             --mini-shadow: rgba(6, 3, 20, 0.45);
             color-scheme: dark;
         }
@@ -1087,18 +1097,22 @@
             right: 10px;
             z-index: 9;
             width: 112px;
-            background: rgba(255, 255, 255, 0.72);
-            border: 2px solid rgba(255, 255, 255, 0.95);
+            /* 颜色全部走主题令牌（--mini-* 在四套主题里各自定义）：
+               白天主题 = 半透明白底 + 蓝晕 + 灰刻度；夜晚主题 = 深色底 + 浅描边 + 浅刻度。
+               这样尺度条在自己的场景里是"融进去"的，而描边/刻度的对比度保证可读。
+               paper 主题的令牌值与参考版写死的数值完全一致 → 浅色主题下逐像素不变。 */
+            background: var(--mini-bg, rgba(255, 255, 255, 0.72));
+            border: 2px solid var(--mini-border, rgba(255, 255, 255, 0.95));
             border-radius: 4px;
-            box-shadow: 0 0 0 2px rgba(103, 174, 230, 0.28), 0 3px 0 rgba(103, 174, 230, 0.30);
+            box-shadow: 0 0 0 2px var(--mini-glow, rgba(103, 174, 230, 0.28)), 0 3px 0 var(--mini-shadow, rgba(103, 174, 230, 0.30));
             padding: 7px 8px 6px;
         }
         .minimap .mini-road {
             position: relative;
             height: 14px;
             background:
-                repeating-linear-gradient(90deg, rgba(130, 148, 175, 0.35) 0 2px, transparent 2px 9px);
-            border-bottom: 2px solid rgba(130, 148, 175, 0.20);
+                repeating-linear-gradient(90deg, var(--mini-stripe, rgba(130, 148, 175, 0.35)) 0 2px, transparent 2px 9px);
+            border-bottom: 2px solid var(--mini-rail, rgba(130, 148, 175, 0.20));
         }
         .minimap .mini-dot {
             position: absolute;
@@ -1108,8 +1122,8 @@
             width: 9px;
             height: 9px;
             background: var(--pink);
-            border: 2px solid #ffffff;
-            box-shadow: 0 0 0 1px rgba(130, 148, 175, 0.55);
+            border: 2px solid var(--mini-dot-border, #ffffff);
+            box-shadow: 0 0 0 1px var(--mini-dotline, rgba(130, 148, 175, 0.55));
             transition: left 0.18s steps(3, end);
         }
         .minimap .mini-dot.done {
@@ -1925,6 +1939,13 @@
             border-radius: 0;
             height: 100%;
         }
+        /* 分享图里**不要**右上角的尺度条：
+           尺度条现在挂在街景场景内部（跟着 reference 的位置），而分享图是克隆整个场景，
+           不排除的话就会连刻度条一起拍进图里 —— 而 v2.0.0 的分享图没有它。
+           这里把分享图里的尺度条去掉，格式与 v2.0.0 保持一致。 */
+        .share-scene .minimap {
+            display: none !important;
+        }
         .share-info {
             position: absolute;
             top: 12px;
@@ -2233,13 +2254,18 @@
             height: 100vh;
             height: 100svh;
         }
-        /* 首帧之前就把"有任务"时该预留的底部高度定下来，避免加载后再跳一次。
-           84px / 66px 与 #app.has-bottom-bar 里的值保持一致（矮屏横屏是 66px）。 */
-        html.boot-has-task #app {
+        /* 底部工具栏的占位**无条件**预留（84px；矮屏横屏 66px），不再区分"有没有任务"。
+           工具栏本身只在有任务时才显示，但占位必须一直留着：
+             · 空状态 738px / 有任务 674px 会相差 64px —— 场景框会跳；
+             · 而"有没有任务"取决于存档，刷新时落在哪个状态并不确定，
+               用户看到的就是"场景框大小会变"。
+           现在两种状态的高度完全一致（实测 393×852 下都是 674px，852×393 下都是 248px），
+           与 #app.has-bottom-bar 里的数值保持一致，纯 CSS 常量，首帧即最终值。 */
+        #app {
             --app-pad-b: 84px;
         }
         @media (max-height: 560px) {
-            html.boot-has-task #app {
+            #app {
                 --app-pad-b: 66px;
             }
         }
@@ -2347,22 +2373,32 @@
             margin-top: 10px;
             padding-top: 12px;
         }
+        /* ===== 顶栏两行文本的高度占位 =====
+           任务名和时长是"恢复存档"之后才由 JS 填进去的：
+           没有内容时，时长那一行高度是 0，顶栏只有 56px；
+           文案一进来顶栏长到 ~69.6px，把下方场景挤矮 13.6px ——
+           于是刷新时能看到场景框"跳"一下，而且每次快慢不同、时有时无。
+           这里让两行在空着的时候也占住自己的行高（字号用 em，跟着断点走），
+           顶栏高度就与"文字到没到"无关，场景框从第一帧起就是最终尺寸。 */
+        .task-name-display,
+        .task-name-input {
+            min-height: max(2rem, calc(1.25em + 10px)); /* 行高 1.25 + 上下内边距/边框 10px */
+        }
+        .task-duration {
+            min-height: 1.5em;                          /* 0.8rem × 1.5 = 19.2px，与有文字时一致 */
+        }
+        /* 矮屏（手机横屏）下基础规则的占位是 1.8rem，这里跟着降到 1.8rem，
+           否则横屏会比参考版高出 2px，下面所有元素跟着下移。 */
+        @media (max-height: 560px) {
+            .task-name-display,
+            .task-name-input {
+                min-height: max(1.8rem, calc(1.25em + 10px));
+            }
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <script>
-        // 底部工具栏出现时会占掉一块高度（--app-pad-b: 84px），把场景压矮。
-        // 如果这块高度等到"恢复存档"之后才加上，首帧之后场景会突然缩一下；
-        // 而每次启动的时机不同，用户看到的就是"每次重进，底部间距都不一样"。
-        // 所以在首帧之前就按存档把类定下来，布局从第一帧起就是最终值。
-        (function () {
-            try {
-                var s = JSON.parse(localStorage.getItem('time_app_state_v1') || '{}');
-                if (s && s.totalDuration > 0) document.documentElement.classList.add('boot-has-task');
-            } catch (e) { /* 隐私模式等，忽略 */ }
-        })();
-    </script>
 </head>
 <body>
     <div id="app">
@@ -2533,10 +2569,6 @@
                 <svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="3" y="3" width="3" height="3"/><rect x="10" y="3" width="3" height="3"/><rect x="3" y="10" width="3" height="3"/><rect x="10" y="10" width="3" height="3"/><rect x="6" y="6" width="1" height="1"/><rect x="7" y="7" width="1" height="1"/><rect x="8" y="8" width="1" height="1"/><rect x="9" y="9" width="1" height="1"/><rect x="6" y="9" width="1" height="1"/><rect x="7" y="8" width="1" height="1"/><rect x="8" y="7" width="1" height="1"/><rect x="9" y="6" width="1" height="1"/></g></svg>
             </button>
             <div class="menu-about">
-                <div class="menu-option" id="authMenuBtn" style="margin-top:2px;">
-                    <span class="menu-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="5" y="2" width="6" height="2"/><rect x="5" y="6" width="6" height="2"/><rect x="5" y="4" width="2" height="2"/><rect x="9" y="4" width="2" height="2"/><rect x="4" y="10" width="8" height="2"/><rect x="2" y="12" width="2" height="2"/><rect x="12" y="12" width="2" height="2"/></g></svg></span>
-                    <span class="auth-label">登录</span>
-                </div>
                 <div class="menu-option" id="captureMenuBtn" style="margin-top:2px;">
                     <span class="menu-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="2" y="5" width="12" height="2"/><rect x="2" y="11" width="12" height="2"/><rect x="2" y="7" width="2" height="4"/><rect x="12" y="7" width="2" height="4"/><rect x="5" y="3" width="4" height="2"/><rect x="6" y="8" width="4" height="2"/></g></svg></span> 生成图片
                 </div>
@@ -2610,7 +2642,7 @@
                 </div>
             </div>
 
-            <div class="modal-version">v2.0.1</div>
+            <div class="modal-version">v2.0.0</div>
 
             <div class="modal-close">
                 <button id="infoCloseBtn">关闭</button>
@@ -2801,7 +2833,6 @@
                 realTimeValue: $('realTimeValue'),
                 resetCapsuleBtn: $('resetCapsuleBtn'),
                 captureMenuBtn: $('captureMenuBtn'),
-                authMenuBtn: $('authMenuBtn'),
                 historyMenuBtn: $('historyMenuBtn'),
                 resetTaskBtn: $('resetTaskBtn'),
                 mainVisual: $('mainVisual'),
@@ -3961,14 +3992,8 @@
             }
 
             function updateAuthUI() {
-                // 顶栏那颗是布局版的"登录"按钮（文案跟随账户），
-                // 菜单里的那项是原来的入口（带 .auth-label），两者都要跟着账户状态走
-                const label = currentUser ? (currentUser.email || '账户').split('@')[0] : '登录';
-                if (dom.authMenuBtn) {
-                    const al = dom.authMenuBtn.querySelector('.auth-label');
-                    if (al) al.textContent = label;
-                }
-                if (dom.authBtn) dom.authBtn.textContent = label;
+                // 菜单里的"登录"项已按用户要求移除，登录入口只保留顶栏这一颗
+                if (dom.authBtn) dom.authBtn.textContent = currentUser ? (currentUser.email || '账户').split('@')[0] : '登录';
             }
 
             function openAuthModal() {
@@ -4167,11 +4192,6 @@
             // ===== 事件绑定 =====
             function bindEvents() {
                 dom.authBtn.addEventListener('click', openAuthModal);
-                // 菜单里的"登录"项：先收起菜单再开登录框，否则两层弹层会叠在一起
-                if (dom.authMenuBtn) dom.authMenuBtn.addEventListener('click', function() {
-                    dom.menuOverlay.classList.remove('open');
-                    openAuthModal();
-                });
                 dom.authSubmitBtn.addEventListener('click', submitAuth);
                 dom.authSwitchBtn.addEventListener('click', function() {
                     authRegisterMode = !authRegisterMode;
