@@ -333,7 +333,11 @@
             inset: 0;
             z-index: -1;
             pointer-events: none;
-            background: linear-gradient(180deg, var(--sky-top), var(--sky-mid) 45%, var(--sky-bottom));
+            /* 场景**后面**的背景区域：纯色。
+               之前这里铺的是天空图（为了兜 iOS 刘海那条），但现在版面已经是
+               「居中列 + 画框面板」，面板四周露出的就是这一块 —— 铺图反而花。
+               改一个变量就能换色。 */
+            background: var(--sky-mid);
         }
         #app {
             width: 100%;
@@ -1494,9 +1498,24 @@
             background: var(--card-deep);
             color: var(--ink);
         }
+        /* 面板顶行：不要左上角的「菜单」标题（按你的要求去掉） */
         .menu-panel .menu-close svg {
-            width: 15px;
-            height: 15px;
+            width: 18px;
+            height: 18px;
+        }
+        /* 关闭按钮：保留 40px 命中区和描边，但**不要底色** */
+        .menu-panel .menu-close {
+            min-width: 40px;
+            min-height: 40px;
+            margin: 0 0 8px 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            background: none;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            color: var(--ink);
         }
         .menu-about {
             margin-top: 8px;
@@ -1673,7 +1692,13 @@
         }
         .history-modal .modal-content {
             max-width: 460px;
-            overflow-y: visible;
+            /* 弹窗本体不滚动，但必须有上限：
+               横屏可视高度只有 ~390px，若不限制，内容会冲出圆角框。
+               100dvh 跟着地址栏收放走，比 vh 稳。 */
+            max-height: calc(100dvh - 24px);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
         .history-modal .modal-title {
             margin-bottom: 2px;
@@ -1684,8 +1709,13 @@
             color: var(--muted);
         }
         .history-list {
-            max-height: 340px;
+            /* 竖屏上限 340px；横屏由 dvh 自动压缩（390px 高的横屏 ≈ 170px）。
+               固定值就是这次溢出的根因。 */
+            max-height: min(340px, calc(100dvh - 220px));
+            min-height: 0;              /* flex 子项必须允许收缩，否则上面那条不生效 */
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
             margin-bottom: 4px;
         }
         .history-item {
@@ -1902,11 +1932,13 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            background: var(--card);
-            border: 3px solid var(--border);
-            border-radius: 5px;
-            padding: 10px 12px;
-            box-shadow: 0 4px 0 var(--shadow);
+            /* 去掉底板/描边/投影：任务名只留字压在画面上，不再抢画面 */
+            background: none;
+            border: none;
+            border-radius: 0;
+            padding: 10px 2px;
+            box-shadow: none;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.32);
             z-index: 20;
         }
         .share-info .si-name {
@@ -1926,8 +1958,9 @@
             color: var(--accent-deep);
             align-self: center;
             white-space: nowrap;
+            /* 同样收掉描边，只留一层很淡的底 */
             background: var(--accent-pale);
-            border: 2px solid var(--border);
+            border: none;
             border-radius: 3px;
             padding: 4px 7px;
         }
@@ -1937,11 +1970,15 @@
             left: 14px;
             font-family: var(--font-pixel);
             font-size: 9px;
+            /* 落款去掉底板：只留一行很轻的字压在画面角上 */
             color: var(--paper);
-            background: var(--ink);
-            border: 2px solid var(--border);
-            border-radius: 3px;
-            padding: 5px 8px;
+            opacity: 0.72;
+            letter-spacing: 0.06em;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+            background: none;
+            border: none;
+            border-radius: 0;
+            padding: 0;
             z-index: 20;
         }
         /* ===== 焦点环（键盘可达性） ===== */
@@ -2107,6 +2144,166 @@
             }
         }
 
+        /* ============================================================
+           布局对齐参考版（index (4)）：三段式文档流
+             ① 页面 = 居中列（max-width: --app-max）+ 四边安全区内边距
+             ② 顶栏**参与文档流**（原来是 absolute 浮在场景上，会压住画面）
+             ③ 场景是「画框式面板」（3px 边框 + 圆角），不是铺满视口
+           放在样式表最后，用来覆盖上面的同名规则。
+           数值全部带兜底值 —— 这些变量若在某套主题里没定义，
+           calc() 会整条失效、内边距会静默消失。
+           ============================================================ */
+        /* ---- 版面变量与断点：完全采用参考版的数值 ---- */
+        :root {
+            --app-max: 640px;
+            --app-pad-x: 18px;
+            --app-pad-t: 16px;
+            --app-pad-b: 24px;
+        }
+        /* 竖屏手机（393 命中这一档）：12 / 14 / 20，场景边框收细到 2px */
+        @media (max-width: 480px) {
+            :root {
+                --app-pad-x: 14px;
+                --app-pad-t: 12px;
+                --app-pad-b: 20px;
+            }
+            #app .street-scene { border-width: 2px !important; }
+        }
+        @media (max-width: 380px) {
+            :root {
+                --app-pad-x: 12px;
+                --app-pad-t: 10px;
+                --app-pad-b: 16px;
+            }
+        }
+        @media (min-width: 900px) {
+            :root {
+                --app-max: 660px;
+                --app-pad-t: 28px;
+                --app-pad-x: 24px;
+                --app-pad-b: 32px;
+            }
+        }
+        /* 横屏 / 矮屏（393 高命中这一档）：上 8 / 下 10，顶栏压到 42px，边框 2px */
+        @media (max-height: 560px) {
+            :root {
+                --app-pad-t: 8px;
+                --app-pad-b: 10px;
+            }
+            #app.has-bottom-bar { --app-pad-b: 66px; }
+            #app .top-bar {
+                min-height: 42px !important;
+                padding: 2px 2px 6px !important;
+            }
+            #app .street-scene { border-width: 2px !important; }
+        }
+        /* 顶栏右上角的「登录」按钮：参考版实测 49×32（比两个图标按钮矮 4px、
+           垂直居中），所以定 32px —— 之前我按 36px 写是错的。 */
+        .auth-button {
+            height: 32px !important;
+            padding: 0 10px;
+            border: 2px solid var(--border);
+            box-sizing: border-box;
+        }
+        /* 底栏：和页面背景**同色**，不能在页面最下压出一条更深的带子。
+           （之前用 --sky-bottom 比背景的 --sky-mid 深，所以看着色不一致。） */
+        .bottom-controls {
+            padding-left: max(calc(var(--app-pad-x) + env(safe-area-inset-left, 0px)),
+                    calc((100vw - var(--app-max)) / 2 + var(--app-pad-x) + env(safe-area-inset-left, 0px)));
+            padding-right: max(calc(var(--app-pad-x) + env(safe-area-inset-right, 0px)),
+                    calc((100vw - var(--app-max)) / 2 + var(--app-pad-x) + env(safe-area-inset-right, 0px)));
+            /* 和页面背景同色，避免最下压出一条更深的带子。
+               !important 是因为 JS 换主题时会写内联样式，样式表的 !important 才压得住。 */
+            background: var(--sky-mid) !important;
+        }
+        #app .street-scene {
+            border-width: 3px;
+        }
+        /* ===== iOS 适配补丁 =====
+           ① 点击时不要 iOS 默认的灰色高亮块
+           ② 横屏时不要自动放大文字（-webkit-text-size-adjust 默认会） */
+        body {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
+        }
+        /* ③ iOS 聚焦输入框时，若字号 < 16px，Safari 会自动把整个页面**放大**，
+              用户必须手动缩回去 —— 这是真机上必现、桌面端永远看不到的 bug。
+              实测本项目的输入控件是 14.72px / 单选 13.33px，所以统一提到 16px。
+              单选/复选框不受影响（它们不会触发聚焦缩放，视觉尺寸也更重要）。 */
+        #app input:not([type="radio"]):not([type="checkbox"]),
+        #app select,
+        #app textarea {
+            font-size: 16px;
+        }
+        #app {
+            max-width: var(--app-max);
+            margin: 0 auto;
+            padding:
+                calc(var(--app-pad-t) + env(safe-area-inset-top, 0px))
+                calc(var(--app-pad-x) + env(safe-area-inset-right, 0px))
+                calc(var(--app-pad-b) + env(safe-area-inset-bottom, 0px))
+                calc(var(--app-pad-x) + env(safe-area-inset-left, 0px));
+        }
+        .top-bar {
+            position: relative;
+            top: auto;
+            left: auto;
+            right: auto;
+            align-items: center;
+            padding: 6px 4px 10px;
+            flex-shrink: 0;
+            min-height: 56px;
+            pointer-events: auto;
+        }
+        /* 任务名占满剩余宽度、按钮靠右 —— 按钮的落位由这两条决定 */
+        .task-info {
+            flex: 1;
+            min-width: 0;
+            padding-right: 10px;
+        }
+        .task-info.is-empty {
+            visibility: hidden;
+        }
+        .top-menu {
+            margin-left: auto;
+        }
+        /* 按钮尺寸/边框/投影对齐参考版 */
+        .icon-button {
+            width: 36px;
+            height: 36px;
+            border: 2px solid var(--border);
+            border-radius: 4px;
+            box-shadow: 0 3px 0 var(--shadow);
+        }
+        .icon-button svg {
+            width: 20px;
+            height: 20px;
+            display: block;
+        }
+        .main-visual {
+            flex: 1 1 0%;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 0 4px;
+            overflow: hidden;
+        }
+        .street-scene {
+            width: 100%;
+            height: 100%;
+            border: 3px solid var(--border);
+            border-radius: 6px;
+            /* 去掉框外那条 4px 偏移装饰影：在深色/城市主题下会读成一条突兀的亮线。
+               只保留内侧受光边。 */
+            box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+        }
+        /* 底栏：纯色（原来是渐变，会在页面底部形成一条色带）。
+           注意用 --sky-mid（与页面背景同色），不是 --sky-bottom ——
+           后者在深色主题里是紫红色，会在页面最下压出一条突兀的亮带。 */
+        .bottom-controls {
+            background: var(--sky-mid, #a0c9ef);
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2122,21 +2319,16 @@
                 </div>
                 <div id="taskDurationDisplay" class="task-duration"></div>
                 <div class="minimap hidden" id="minimap">
-                    <div class="mini-bar"><div class="mini-fill" id="miniFill"></div></div>
+                    <div class="mini-road">
+                        <div class="mini-dot" id="miniDot"></div>
+                    </div>
                 </div>
             </div>
             <div class="top-menu">
-                <div class="real-time-wrap">
-                    <button class="real-time-toggle" id="realTimeToggle" aria-label="实际进度">
-                        <svg class="toggle-icon" viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="3" y="3" width="10" height="10"/><rect x="7" y="5" width="2" height="3"/><rect x="7" y="8" width="4" height="2"/></g></svg>
-                    </button>
-                    <div id="realTimeDisplay" class="real-time-display">
-                        <span class="value" id="realTimeValue"></span>
-                    </div>
-                </div>
                 <button class="icon-button" id="infoBtn" aria-label="关于 LogTime">
                     <svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="7" y="2" width="2" height="2"/><rect x="6" y="6" width="4" height="8"/></g></svg>
                 </button>
+                <button class="auth-button" id="authBtn" aria-label="账户">登录</button>
                 <button class="icon-button" id="menuBtn" aria-label="菜单">
                     <svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="2" y="3" width="12" height="2"/><rect x="2" y="7" width="12" height="2"/><rect x="2" y="11" width="12" height="2"/></g></svg>
                 </button>
@@ -2259,7 +2451,21 @@
          而 #app 在弹窗打开时会被整体"推后"（transform），
          若留在里面，transform 会成为 fixed 的包含块，通栏就失效了 -->
     <div class="bottom-controls">
+        <div class="bottom-left">
+            <button class="mode-badge-btn" id="modeBadgeBtn" aria-label="当前时间模型，点击查看说明">
+                <span class="badge-letter">A</span>
+                <span class="badge-name">启程</span>
+            </button>
+        </div>
         <div class="bottom-right">
+            <div class="real-time-wrap">
+                <button class="real-time-toggle" id="realTimeToggle" aria-label="实际进度">
+                    <svg class="toggle-icon" viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="3" y="3" width="10" height="10"/><rect x="7" y="5" width="2" height="3"/><rect x="7" y="8" width="4" height="2"/></g></svg>
+                </button>
+                <div id="realTimeDisplay" class="real-time-display">
+                    <span class="value" id="realTimeValue"></span>
+                </div>
+            </div>
             <button class="reset-capsule" id="resetCapsuleBtn" style="display:none">重置</button>
         </div>
     </div>
@@ -2271,17 +2477,17 @@
             </button>
             <div class="menu-about">
                 <div class="menu-option" id="authBtn" style="margin-top:2px;">
-                    <span class="menu-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="5" y="2" width="6" height="6"/><rect x="3" y="9" width="10" height="5"/><rect x="6" y="9" width="4" height="2"/></g></svg></span>
+                    <span class="menu-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="5" y="2" width="6" height="2"/><rect x="5" y="6" width="6" height="2"/><rect x="5" y="4" width="2" height="2"/><rect x="9" y="4" width="2" height="2"/><rect x="4" y="10" width="8" height="2"/><rect x="2" y="12" width="2" height="2"/><rect x="12" y="12" width="2" height="2"/></g></svg></span>
                     <span class="auth-label">登录</span>
                 </div>
                 <div class="menu-option" id="captureMenuBtn" style="margin-top:2px;">
-                    <span class="menu-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="3" y="5" width="10" height="7"/><rect x="4" y="4" width="3" height="2"/><rect x="1" y="6" width="2" height="1"/><rect x="13" y="6" width="2" height="1"/><rect x="6" y="7" width="4" height="3"/></g></svg></span> 生成图片
+                    <span class="menu-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="2" y="5" width="12" height="2"/><rect x="2" y="11" width="12" height="2"/><rect x="2" y="7" width="2" height="4"/><rect x="12" y="7" width="2" height="4"/><rect x="5" y="3" width="4" height="2"/><rect x="6" y="8" width="4" height="2"/></g></svg></span> 生成图片
                 </div>
                 <div class="menu-option" id="historyMenuBtn" style="margin-top:2px;">
-                    <span class="menu-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="3" y="3" width="10" height="10"/><rect x="2" y="2" width="12" height="12" opacity="0.35"/><rect x="7" y="5" width="2" height="4"/><rect x="7" y="7" width="5" height="2"/></g></svg></span> 历史记录
+                    <span class="menu-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="5" y="2" width="6" height="2"/><rect x="5" y="12" width="6" height="2"/><rect x="2" y="5" width="2" height="6"/><rect x="12" y="5" width="2" height="6"/><rect x="3" y="3" width="2" height="2"/><rect x="11" y="3" width="2" height="2"/><rect x="3" y="11" width="2" height="2"/><rect x="11" y="11" width="2" height="2"/><rect x="7" y="4" width="2" height="5"/><rect x="9" y="7" width="3" height="2"/></g></svg></span> 历史记录
                 </div>
                 <div class="menu-option danger" id="resetTaskBtn" style="margin-top:6px;padding-top:9px;border-top:2px dashed var(--ink-soft);">
-                    <span class="menu-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="8" y="2" width="5" height="2"/><rect x="11" y="4" width="2" height="3"/><rect x="3" y="6" width="8" height="2"/><rect x="3" y="8" width="2" height="4"/><rect x="5" y="11" width="6" height="2"/></g></svg></span> 重置任务
+                    <span class="menu-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="4" y="2" width="5" height="2"/><rect x="2" y="4" width="2" height="8"/><rect x="5" y="12" width="7" height="2"/><rect x="12" y="7" width="2" height="5"/><rect x="3" y="4" width="2" height="2"/><rect x="11" y="12" width="2" height="2"/><rect x="9" y="1" width="3" height="2"/><rect x="12" y="1" width="2" height="5"/></g></svg></span> 重置任务
                 </div>
             </div>
         </div>
@@ -2347,7 +2553,7 @@
                 </div>
             </div>
 
-            <div class="modal-version">v2.5.3</div>
+            <div class="modal-version">v2.0.0</div>
 
             <div class="modal-close">
                 <button id="infoCloseBtn">关闭</button>
@@ -2783,6 +2989,10 @@
                     set('layerMid', 'mid');
                     set('layerNear', 'near');
                     set('layerGround', 'ground');
+                    // 页面底层（body::before）也用同一张天空图：
+                    // iOS 上万一露出场景盒子之外的一条，露出的仍是同一张图，
+                    // 结构上无缝。换主题时这里会跟着一起换。
+                    document.documentElement.style.setProperty('--page-sky', 'url(' + t.layers.sky + ')');
                 }
                 document.documentElement.setAttribute('data-theme', name);
                 document.documentElement.style.setProperty('--road-h', t.groundH + '%');
@@ -3165,6 +3375,21 @@
 
             // ===== 模式徽标（左下角） =====
             const MODE_NAMES = { A: '启程', B: '抵达', C: '恒行' };
+            // ===== 左下角模型徽标：跟着当前模型走 =====
+            function updateModeBadge() {
+                const btn = document.getElementById('modeBadgeBtn');
+                if (!btn) return;
+                const letter = btn.querySelector('.badge-letter');
+                const name = btn.querySelector('.badge-name');
+                if (letter && letter.textContent !== state.feedbackMode) letter.textContent = state.feedbackMode;
+                const want = MODE_NAMES[state.feedbackMode] || '启程';
+                if (name && name.textContent !== want) name.textContent = want;
+            }
+            updateModeBadge();
+            // 模型可能在多处被改（新建任务、读存档、云端恢复、切模式），
+            // 与其在每处都插一句、漏一处就长期不同步，不如定时比对：
+            // 写入前先判等，文字没变就不碰 DOM，开销可忽略。
+            setInterval(updateModeBadge, 200);
             function updateModeBadge() {
                 const btn = document.getElementById('modeBadgeBtn');
                 if (!btn) return;
@@ -3311,6 +3536,9 @@
                 const isLocked = state.isModeLocked;
                 dom.modeSelection.classList.toggle('disabled', isLocked);
                 dom.modeRadios.forEach(radio => {
+                    // 保持原逻辑：有缓存就回显缓存里的模型，没有缓存时
+                    // state.feedbackMode 的默认值是 'A'，于是 A 亮。
+                    // （详情页那三张卡是另一回事：没创建任务时一张都不亮。）
                     radio.checked = (radio.value === state.feedbackMode);
                     radio.disabled = isLocked;
                 });
@@ -3319,8 +3547,12 @@
 
             // 关于弹窗里三张卡片：选中的那个整条亮起来（汉字名 + 字母徽标一起）
             function updateModeCards() {
+                // 只有"任务已创建"时才点亮选中的那张卡。
+                // 没有任务时（含读缓存恢复的旧模型）一张都不亮 ——
+                // 详情页要反映"还没选"，不能替用户预先选好。
+                const hasTask = state.totalDuration > 0;
                 document.querySelectorAll('.mode-card[data-feedback-mode]').forEach(function(el) {
-                    el.classList.toggle('active', el.dataset.feedbackMode === state.feedbackMode);
+                    el.classList.toggle('active', hasTask && el.dataset.feedbackMode === state.feedbackMode);
                 });
             }
 
@@ -3445,7 +3677,7 @@
                     wrap.appendChild(info);
                     const footer = document.createElement('div');
                     footer.className = 'share-footer';
-                    footer.textContent = 'LogTime v2.0';
+                    footer.textContent = 'LogTime';
                     wrap.appendChild(footer);
                     document.body.appendChild(wrap);
                     await new Promise(res => setTimeout(res, 80));
@@ -4178,6 +4410,25 @@
                 updateModeSelector();
                 console.log('LogTime 已启动');
             });
+
+            // ===== 左下角模型徽标：跟着当前模型走 =====
+            // 必须放在 IIFE 顶层：模型可能在多处被改（新建任务、读存档、云端恢复），
+            // 与其在每处都插一句、漏一处就长期不同步，不如定时比对 ——
+            // 写入前先判等，文字没变就不碰 DOM。
+            (function () {
+                var NAMES = { A: '启程', B: '抵达', C: '恒行' };
+                function sync() {
+                    var btn = document.getElementById('modeBadgeBtn');
+                    if (!btn) return;
+                    var letter = btn.querySelector('.badge-letter');
+                    var name = btn.querySelector('.badge-name');
+                    if (letter && letter.textContent !== state.feedbackMode) letter.textContent = state.feedbackMode;
+                    var want = NAMES[state.feedbackMode] || '启程';
+                    if (name && name.textContent !== want) name.textContent = want;
+                }
+                sync();
+                setInterval(sync, 200);
+            })();
 
             window.__TIME = {
                 state,
