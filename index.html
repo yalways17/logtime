@@ -1468,18 +1468,30 @@
             color: var(--paper);
         }
         /* ===== 菜单 ===== */
+        /* 打开/关闭只做"合成器能直接干"的事：
+             · 遮罩**不做淡入淡出**，直接切（visibility）。整屏 rgba 图层淡出在手机上会掉帧
+               —— 6 倍 CPU 降频实测：淡出时出现 2 帧 33ms，不淡出则 0 帧超 32ms；
+               而且用户要的就是"别那么明显的渐出"。
+             · 关闭态不再是 display:none，而是 visibility:hidden + pointer-events:none：
+               原来 display:none → flex 会触发整页重新布局，那一帧就是明显的卡顿，
+               而且 display 变化本身没法做过渡。
+             · 只有面板（一小块）做 120ms 的 transform/opacity 过渡，并预先提层。
+           原来是 animation: panelIn 180ms steps(4, end) —— 分 4 跳，看着就是"卡 + 明显渐出"。 */
         .menu-overlay {
             position: fixed;
             inset: 0;
             background: rgba(34, 49, 74, 0.35);
             z-index: 100;
-            display: none;
+            display: flex;
             align-items: flex-start;
             justify-content: flex-end;
             padding: calc(12px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) calc(12px + env(safe-area-inset-left, 0px));
+            visibility: hidden;
+            pointer-events: none;
         }
         .menu-overlay.open {
-            display: flex;
+            visibility: visible;
+            pointer-events: auto;
         }
         .menu-panel {
             background: var(--card);
@@ -1489,46 +1501,18 @@
             min-width: 200px;
             max-width: 250px;
             box-shadow: 0 6px 0 var(--shadow);
-            animation: panelIn var(--dur-pop) steps(4, end) both;
             transform-origin: top right;
+            transform: translateY(-6px) scale(0.97);
+            opacity: 0;
+            will-change: transform, opacity;
+            transition: transform 120ms var(--ease-out), opacity 120ms var(--ease-out);
         }
-        .menu-panel .menu-close {
-            float: right;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: none;
-            border: 2px solid transparent;
-            color: var(--muted);
-            cursor: pointer;
-            border-radius: 3px;
-            line-height: 1;
+        .menu-overlay.open .menu-panel {
+            transform: translateY(0) scale(1);
+            opacity: 1;
         }
-        .menu-panel .menu-close:hover {
-            background: var(--card-deep);
-            color: var(--ink);
-        }
-        /* 面板顶行：不要左上角的「菜单」标题（按你的要求去掉） */
-        .menu-panel .menu-close svg {
-            width: 18px;
-            height: 18px;
-        }
-        /* 关闭按钮：只要 40px 命中区和图标本身，**去掉外面那圈边框** */
-        .menu-panel .menu-close {
-            min-width: 40px;
-            min-height: 40px;
-            margin: 0 0 4px 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            background: none;
-            border: none;
-            border-radius: 0;
-            color: var(--ink);
-        }
+        /* 关闭按钮（右上角那个叉）已按你的要求删除：
+           关闭方式 = 点面板外任意处 / 再点一次右上角菜单按钮 / Esc（键盘） */
         .menu-about .menu-option + .menu-option {
             margin-top: 2px;
         }
@@ -1536,7 +1520,13 @@
             margin-top: 8px;
             border-top: 2px dashed var(--ink-soft);
             padding-top: 8px;
-            clear: both;
+        }
+        /* 右上角的叉删掉之后，分组顶部那条虚线就悬在面板最上沿了 ——
+           首组不要分隔线、也不留那 8+8px 的空隙，面板直接从第一项开始。 */
+        .menu-panel .menu-about:first-child {
+            margin-top: 0;
+            border-top: none;
+            padding-top: 0;
         }
         .menu-option {
             display: flex;
@@ -2009,7 +1999,6 @@
         .real-time-toggle:focus-visible,
         .reset-capsule:focus-visible,
         .add-actions .btn:focus-visible,
-        .menu-close:focus-visible,
         .menu-option:focus-visible,
         .modal-close button:focus-visible,
         .auth-submit:focus-visible,
@@ -2127,6 +2116,12 @@
             .modal-content,
             .done-flag {
                 animation: none !important;
+            }
+            /* 菜单现在是过渡而不是动画，这里也要一起关掉：
+               关掉后开/关都是瞬间到位（reduced-motion 的预期行为） */
+            .menu-overlay,
+            .menu-panel {
+                transition: none !important;
             }
             .sprite,
             .sprite .leg,
@@ -2565,9 +2560,6 @@
 
     <div class="menu-overlay" id="menuOverlay">
         <div class="menu-panel">
-            <button class="menu-close" id="menuClose" aria-label="关闭">
-                <svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="3" y="3" width="3" height="3"/><rect x="10" y="3" width="3" height="3"/><rect x="3" y="10" width="3" height="3"/><rect x="10" y="10" width="3" height="3"/><rect x="6" y="6" width="1" height="1"/><rect x="7" y="7" width="1" height="1"/><rect x="8" y="8" width="1" height="1"/><rect x="9" y="9" width="1" height="1"/><rect x="6" y="9" width="1" height="1"/><rect x="7" y="8" width="1" height="1"/><rect x="8" y="7" width="1" height="1"/><rect x="9" y="6" width="1" height="1"/></g></svg>
-            </button>
             <div class="menu-about">
                 <div class="menu-option" id="captureMenuBtn" style="margin-top:2px;">
                     <span class="menu-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="2" y="5" width="12" height="2"/><rect x="2" y="11" width="12" height="2"/><rect x="2" y="7" width="2" height="4"/><rect x="12" y="7" width="2" height="4"/><rect x="5" y="3" width="4" height="2"/><rect x="6" y="8" width="4" height="2"/></g></svg></span> 生成图片
@@ -2642,7 +2634,7 @@
                 </div>
             </div>
 
-            <div class="modal-version">v2.0.0</div>
+            <div class="modal-version">v2.0.1</div>
 
             <div class="modal-close">
                 <button id="infoCloseBtn">关闭</button>
@@ -2802,7 +2794,6 @@
                 taskDurationDisplay: $('taskDurationDisplay'),
                 menuBtn: $('menuBtn'),
                 menuOverlay: $('menuOverlay'),
-                menuClose: $('menuClose'),
                 addPanel: $('addPanel'),
                 addMask: $('addMask'),
                 taskNameInputField: $('taskNameInputField'),
@@ -4239,16 +4230,18 @@
                 });
 
                 // ---- 菜单 ----
+                // 叉已删掉，所以菜单按钮改成"开/关"切换，点面板外或按 Esc 也能关
                 dom.menuBtn.addEventListener('click', function() {
-                    dom.menuOverlay.classList.add('open');
-                });
-                dom.menuClose.addEventListener('click', function() {
-                    dom.menuOverlay.classList.remove('open');
+                    dom.menuOverlay.classList.toggle('open');
                 });
                 dom.menuOverlay.addEventListener('click', function(e) {
+                    // 点在面板外（= 遮罩本身）就关闭
                     if (e.target === this) {
                         this.classList.remove('open');
                     }
+                });
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') dom.menuOverlay.classList.remove('open');
                 });
                 // 菜单项是 div，键盘用户原本完全无法触达：补 role/tabindex，并用 Enter/Space 触发点击
                 dom.menuOverlay.querySelectorAll('.menu-option').forEach(function(el) {
