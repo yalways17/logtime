@@ -3993,6 +3993,9 @@
 
             // ===== 账户 =====
             let authRegisterMode = false;
+            /* 用户自己点「登录/注册」提交的时间戳：handleAuthSession 只认这个，
+               用来区分"用户主动登录"和"后台恢复会话/刷新令牌"（见那两处注释） */
+            let authUserInitiatedAt = 0;
 
             function setAuthStatus(text, type) {
                 dom.authStatus.textContent = text || '';
@@ -4038,6 +4041,8 @@
                 authBusy = true;
                 dom.authSubmitBtn.disabled = true;
                 setAuthStatus(authRegisterMode ? '正在注册……' : '正在登录……');
+                // 标记"这次是用户主动登录"，成功后 handleAuthSession 才允许自动收起弹窗
+                authUserInitiatedAt = Date.now();
                 try {
                     if (authRegisterMode) {
                         const { data, error } = await supabaseClient.auth.signUp({
@@ -4071,9 +4076,19 @@
                 updateAuthUI();
                 if (currentUser) {
                     await hydrateFromCloud();
-                    dom.authModal.classList.remove('open');
-                    dom.authEmail.value = '';
-                    dom.authPassword.value = '';
+                    /* 这里**不能**无条件关掉登录框：
+                       除了"用户刚提交登录/注册"，后台恢复会话（INITIAL_SESSION）和
+                       刷新令牌（TOKEN_REFRESHED）也会走到这里，而 hydrateFromCloud()
+                       是一次网络请求 —— 用户正好在这个窗口里点了「登录」，
+                       弹窗刚打开就会被这句关掉，表现就是"第一次点开自己跳掉、再点才留住"。
+                       所以只在"这次会话是用户自己主动登录触发的"（15 秒内）才自动收起。 */
+                    const userJustSignedIn = authUserInitiatedAt && (Date.now() - authUserInitiatedAt < 15000);
+                    authUserInitiatedAt = 0;
+                    if (userJustSignedIn) {
+                        dom.authModal.classList.remove('open');
+                        dom.authEmail.value = '';
+                        dom.authPassword.value = '';
+                    }
                 }
             }
 
@@ -4480,6 +4495,7 @@
                         if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
                             setTimeout(() => handleAuthSession(session), 0);
                         } else if (event === 'SIGNED_OUT') {
+                            authUserInitiatedAt = 0;
                             currentUser = null; cloudHydrated = false; updateAuthUI();
                         }
                     });
