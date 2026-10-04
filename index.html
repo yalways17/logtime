@@ -1082,40 +1082,38 @@
         }
         /* ===== 小地图（右上角，映射进度） ===== */
         .minimap {
-            display: inline-flex;
-            align-items: center;
-            margin-top: 8px;
-            padding: 0;
-            width: 150px;
-            background: transparent;
-            border: none;
-            border-radius: 0;
-            box-shadow: none;
-            box-sizing: border-box;
-        }
-        .minimap .mini-bar {
-            position: relative;
-            width: 100%;
-            height: 14px;
-            background: var(--mini-bg);
-            border: 2px solid var(--mini-border);
-            border-radius: 3px;
-            box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.22);
-            overflow: hidden;
-            box-sizing: border-box;
-        }
-        .minimap .mini-fill {
             position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 0%;
-            background: var(--pink);
-            background-image: repeating-linear-gradient(90deg, transparent 0 5px, rgba(255, 255, 255, 0.28) 5px 7px);
-            box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3);
-            transition: width 0.18s steps(3, end);
+            top: 10px;
+            right: 10px;
+            z-index: 9;
+            width: 112px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 2px solid rgba(255, 255, 255, 0.95);
+            border-radius: 4px;
+            box-shadow: 0 0 0 2px rgba(103, 174, 230, 0.28), 0 3px 0 rgba(103, 174, 230, 0.30);
+            padding: 7px 8px 6px;
         }
-        .minimap .mini-fill.done {
+        .minimap .mini-road {
+            position: relative;
+            height: 14px;
+            background:
+                repeating-linear-gradient(90deg, rgba(130, 148, 175, 0.35) 0 2px, transparent 2px 9px);
+            border-bottom: 2px solid rgba(130, 148, 175, 0.20);
+        }
+        .minimap .mini-dot {
+            position: absolute;
+            top: -3px;
+            left: 0;
+            transform: translateX(-50%);
+            width: 9px;
+            height: 9px;
+            background: var(--pink);
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 0 1px rgba(130, 148, 175, 0.55);
+            transition: left 0.18s steps(3, end);
+        }
+        .minimap .mini-dot.done {
             background: var(--yellow);
-            background-image: repeating-linear-gradient(90deg, transparent 0 5px, rgba(255, 255, 255, 0.3) 5px 7px);
         }
         /* ===== 底部工具栏 ===== */
         .bottom-controls {
@@ -1503,19 +1501,22 @@
             width: 18px;
             height: 18px;
         }
-        /* 关闭按钮：保留 40px 命中区和描边，但**不要底色** */
+        /* 关闭按钮：只要 40px 命中区和图标本身，**去掉外面那圈边框** */
         .menu-panel .menu-close {
             min-width: 40px;
             min-height: 40px;
-            margin: 0 0 8px 0;
+            margin: 0 0 4px 0;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             padding: 0;
             background: none;
-            border: 2px solid var(--border);
-            border-radius: 6px;
+            border: none;
+            border-radius: 0;
             color: var(--ink);
+        }
+        .menu-about .menu-option + .menu-option {
+            margin-top: 2px;
         }
         .menu-about {
             margin-top: 8px;
@@ -2000,7 +2001,6 @@
         }
         /* ===== 响应式断点 ===== */
         @media (max-width: 480px) {
-            .minimap { width: 96px; padding: 6px 8px; }
             :root {
                 --app-pad-x: 14px;
                 --app-pad-t: 12px;
@@ -2221,10 +2221,37 @@
         }
         /* ===== iOS 适配补丁 =====
            ① 点击时不要 iOS 默认的灰色高亮块
-           ② 横屏时不要自动放大文字（-webkit-text-size-adjust 默认会） */
+           ② 横屏时不要自动放大文字（-webkit-text-size-adjust 默认会）
+           ③ 定高改用 100svh：dvh 会跟着浏览器工具栏收放变，
+              每次重进 App 时工具栏状态不同 → 场景高度不同 →
+              底部按钮与场景的间距"每次都不一样"。svh 是稳定值，布局不再跳。 */
         body {
             -webkit-tap-highlight-color: transparent;
             -webkit-text-size-adjust: 100%;
+        }
+        #app {
+            height: 100vh;
+            height: 100svh;
+        }
+        /* 首帧之前就把"有任务"时该预留的底部高度定下来，避免加载后再跳一次。
+           84px / 66px 与 #app.has-bottom-bar 里的值保持一致（矮屏横屏是 66px）。 */
+        html.boot-has-task #app {
+            --app-pad-b: 84px;
+        }
+        @media (max-height: 560px) {
+            html.boot-has-task #app {
+                --app-pad-b: 66px;
+            }
+        }
+        /* 场景四周的底色 + 底栏，统一改用 --sky-top（美术天空的**顶部色**）。
+           原来用 --sky-mid：在深色主题里它偏紫（如 flatnight 的 #172052），
+           而画面里的天空是 --sky-top 那种近黑藏蓝 —— 四周就显出一圈突兀的紫。
+           三者同色后，画框像是"嵌在同一片天里"。 */
+        html,
+        body::before,
+        .bottom-controls {
+            background: var(--sky-top) !important;
+            background-color: var(--sky-top) !important;
         }
         /* ③ iOS 聚焦输入框时，若字号 < 16px，Safari 会自动把整个页面**放大**，
               用户必须手动缩回去 —— 这是真机上必现、桌面端永远看不到的 bug。
@@ -2304,10 +2331,38 @@
         .bottom-controls {
             background: var(--sky-mid, #a0c9ef);
         }
+        /* ===== 菜单各区块的间距 =====
+           原来条目挨得偏紧、分组之间也只是一条虚线贴着脸。
+           统一给到呼吸感：条目内边距加大、分组上下留白、虚线与内容分开。
+           注意必须放在文件最后 —— 基础规则和 480px 断点都会重设 padding，
+           放前面会被它们盖掉（写了等于没写）。 */
+        .menu-panel {
+            padding: 16px 16px 14px;
+        }
+        .menu-option {
+            padding: 11px 10px;
+            gap: 12px;
+        }
+        .menu-about {
+            margin-top: 10px;
+            padding-top: 12px;
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script>
+        // 底部工具栏出现时会占掉一块高度（--app-pad-b: 84px），把场景压矮。
+        // 如果这块高度等到"恢复存档"之后才加上，首帧之后场景会突然缩一下；
+        // 而每次启动的时机不同，用户看到的就是"每次重进，底部间距都不一样"。
+        // 所以在首帧之前就按存档把类定下来，布局从第一帧起就是最终值。
+        (function () {
+            try {
+                var s = JSON.parse(localStorage.getItem('time_app_state_v1') || '{}');
+                if (s && s.totalDuration > 0) document.documentElement.classList.add('boot-has-task');
+            } catch (e) { /* 隐私模式等，忽略 */ }
+        })();
+    </script>
 </head>
 <body>
     <div id="app">
@@ -2318,11 +2373,6 @@
                     <input type="text" id="taskNameInput" class="task-name-input hidden" maxlength="60" />
                 </div>
                 <div id="taskDurationDisplay" class="task-duration"></div>
-                <div class="minimap hidden" id="minimap">
-                    <div class="mini-road">
-                        <div class="mini-dot" id="miniDot"></div>
-                    </div>
-                </div>
             </div>
             <div class="top-menu">
                 <button class="icon-button" id="infoBtn" aria-label="关于 LogTime">
@@ -2434,6 +2484,13 @@
                 <!-- 完成提示 -->
                 <div class="done-flag hidden" id="doneFlag">完成！</div>
 
+                <!-- 小地图（右上角，映射进度） -->
+                <div class="minimap hidden" id="minimap">
+                    <div class="mini-road">
+                        <div class="mini-dot" id="miniDot"></div>
+                    </div>
+                </div>
+
                 <!-- 空态 -->
                 <div id="emptyState" class="empty-state">
                     <button class="add-trigger" id="emptyAddBtn" aria-label="添加任务">
@@ -2476,7 +2533,7 @@
                 <svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="3" y="3" width="3" height="3"/><rect x="10" y="3" width="3" height="3"/><rect x="3" y="10" width="3" height="3"/><rect x="10" y="10" width="3" height="3"/><rect x="6" y="6" width="1" height="1"/><rect x="7" y="7" width="1" height="1"/><rect x="8" y="8" width="1" height="1"/><rect x="9" y="9" width="1" height="1"/><rect x="6" y="9" width="1" height="1"/><rect x="7" y="8" width="1" height="1"/><rect x="8" y="7" width="1" height="1"/><rect x="9" y="6" width="1" height="1"/></g></svg>
             </button>
             <div class="menu-about">
-                <div class="menu-option" id="authBtn" style="margin-top:2px;">
+                <div class="menu-option" id="authMenuBtn" style="margin-top:2px;">
                     <span class="menu-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="5" y="2" width="6" height="2"/><rect x="5" y="6" width="6" height="2"/><rect x="5" y="4" width="2" height="2"/><rect x="9" y="4" width="2" height="2"/><rect x="4" y="10" width="8" height="2"/><rect x="2" y="12" width="2" height="2"/><rect x="12" y="12" width="2" height="2"/></g></svg></span>
                     <span class="auth-label">登录</span>
                 </div>
@@ -2553,7 +2610,7 @@
                 </div>
             </div>
 
-            <div class="modal-version">v2.0.0</div>
+            <div class="modal-version">v2.0.1</div>
 
             <div class="modal-close">
                 <button id="infoCloseBtn">关闭</button>
@@ -2727,7 +2784,7 @@
                 walker: $('walker'),
                 walkerSprite: $('walkerSprite'),
                 minimap: $('minimap'),
-                miniFill: $('miniFill'),
+                miniDot: $('miniDot'),
                 doneFlag: $('doneFlag'),
                 layerFar: $('layerFar'),
                 layerMid: $('layerMid'),
@@ -2744,6 +2801,7 @@
                 realTimeValue: $('realTimeValue'),
                 resetCapsuleBtn: $('resetCapsuleBtn'),
                 captureMenuBtn: $('captureMenuBtn'),
+                authMenuBtn: $('authMenuBtn'),
                 historyMenuBtn: $('historyMenuBtn'),
                 resetTaskBtn: $('resetTaskBtn'),
                 mainVisual: $('mainVisual'),
@@ -3055,15 +3113,15 @@
             }
 
             function updateMinimap(x, p) {
-                if (!dom.minimap || !dom.miniFill) return;
+                if (!dom.minimap || !dom.miniDot) return;
                 const hasTask = state.totalDuration > 0;
                 if (hasTask && dom.minimap.classList.contains('hidden')) dom.minimap.classList.remove('hidden');
                 if (!hasTask && !dom.minimap.classList.contains('hidden')) dom.minimap.classList.add('hidden');
                 if (hasTask) {
-                    // 右上角进度条展示映射（感知）进度；真实进度保留在右下角（默认隐藏）
+                    // 小地图展示映射（感知）进度；真实进度保留在右下角（默认隐藏）
                     const t = Math.min(Math.max(p, 0), 1);
-                    dom.miniFill.style.width = (t * 100).toFixed(2) + '%';
-                    dom.miniFill.classList.toggle('done', !!state.isCompleted);
+                    dom.miniDot.style.left = (t * 100).toFixed(2) + '%';
+                    dom.miniDot.classList.toggle('done', !!state.isCompleted);
                 }
             }
 
@@ -3903,13 +3961,14 @@
             }
 
             function updateAuthUI() {
-                if (currentUser) {
-                    const al = dom.authBtn.querySelector('.auth-label');
-                    if (al) al.textContent = (currentUser.email || '账户').split('@')[0];
-                } else {
-                    const al = dom.authBtn.querySelector('.auth-label');
-                    if (al) al.textContent = '登录';
+                // 顶栏那颗是布局版的"登录"按钮（文案跟随账户），
+                // 菜单里的那项是原来的入口（带 .auth-label），两者都要跟着账户状态走
+                const label = currentUser ? (currentUser.email || '账户').split('@')[0] : '登录';
+                if (dom.authMenuBtn) {
+                    const al = dom.authMenuBtn.querySelector('.auth-label');
+                    if (al) al.textContent = label;
                 }
+                if (dom.authBtn) dom.authBtn.textContent = label;
             }
 
             function openAuthModal() {
@@ -4108,6 +4167,11 @@
             // ===== 事件绑定 =====
             function bindEvents() {
                 dom.authBtn.addEventListener('click', openAuthModal);
+                // 菜单里的"登录"项：先收起菜单再开登录框，否则两层弹层会叠在一起
+                if (dom.authMenuBtn) dom.authMenuBtn.addEventListener('click', function() {
+                    dom.menuOverlay.classList.remove('open');
+                    openAuthModal();
+                });
                 dom.authSubmitBtn.addEventListener('click', submitAuth);
                 dom.authSwitchBtn.addEventListener('click', function() {
                     authRegisterMode = !authRegisterMode;
