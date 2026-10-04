@@ -1296,15 +1296,19 @@
             box-shadow: 0 0 0 var(--shadow);
         }
         /* ===== 添加面板 ===== */
+        /* 和菜单同一套逻辑：遮罩常驻 + visibility 开关，面板只做 120ms 的
+           transform/opacity 过渡（原来是 display:none 切换 + panelFade steps(4) 分 4 跳）。 */
         .add-mask {
             position: fixed;
             inset: 0;
             background: rgba(8, 6, 16, 0.62);
             z-index: 245;
-            display: none;
+            visibility: hidden;
+            pointer-events: none;
         }
         .add-mask.open {
-            display: block;
+            visibility: visible;
+            pointer-events: auto;
         }
         .add-panel {
             position: fixed;
@@ -1321,23 +1325,19 @@
             overflow-y: auto;
             overscroll-behavior: contain;
             max-height: 86vh;
-            display: none;
-            animation: panelFade var(--dur-pop) steps(4, end) both;
+            visibility: hidden;
+            opacity: 0;
+            will-change: transform, opacity;
+            transition: transform 120ms var(--ease-out), opacity 120ms var(--ease-out);
             box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(255, 255, 255, 0.16);
             z-index: 250;
         }
         .add-panel.open {
-            display: block;
+            visibility: visible;
+            opacity: 1;
             transform: translate(-50%, -50%) scale(1);
         }
-        @keyframes panelFade {
-            0% { opacity: 0; }
-            100% { opacity: 1; }
-        }
-        @keyframes panelIn {
-            0% { transform: translateY(-6px) scale(0.96); opacity: 0; }
-            100% { transform: translateY(0) scale(1); opacity: 1; }
-        }
+        /* 原来的 panelFade / panelIn（steps(4) 分 4 跳）已经没人引用了，删掉 */
         .add-panel .panel-title {
             font-size: 0.95rem;
             font-weight: 800;
@@ -1565,18 +1565,24 @@
             color: var(--danger);
         }
         /* ===== 弹窗 ===== */
+        /* 同样换成菜单那套：遮罩常驻（visibility 开关），内容块只做 120ms 过渡。
+           这样「换个场景 / 登录 / ！详情 / 历史记录」的出现手感和菜单完全一致，
+           不再是原来的 panelIn steps(4) 分 4 跳。 */
         .modal-overlay {
             position: fixed;
             inset: 0;
             background: rgba(34, 49, 74, 0.45);
             z-index: 200;
-            display: none;
+            display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            visibility: hidden;
+            pointer-events: none;
         }
         .modal-overlay.open {
-            display: flex;
+            visibility: visible;
+            pointer-events: auto;
         }
         .modal-content {
             background: var(--card);
@@ -1587,8 +1593,15 @@
             width: 100%;
             max-height: 82vh;
             overflow-y: auto;
-            animation: panelIn var(--dur-modal) steps(4, end) both;
+            transform: translateY(-6px) scale(0.97);
+            opacity: 0;
+            will-change: transform, opacity;
+            transition: transform 120ms var(--ease-out), opacity 120ms var(--ease-out);
             box-shadow: 0 6px 0 var(--shadow);
+        }
+        .modal-overlay.open .modal-content {
+            transform: translateY(0) scale(1);
+            opacity: 1;
         }
         .modal-title {
             font-size: 1.25rem;
@@ -2117,10 +2130,14 @@
             .done-flag {
                 animation: none !important;
             }
-            /* 菜单现在是过渡而不是动画，这里也要一起关掉：
+            /* 菜单/弹窗/添加面板现在都是过渡而不是动画，这里也要一起关掉：
                关掉后开/关都是瞬间到位（reduced-motion 的预期行为） */
             .menu-overlay,
-            .menu-panel {
+            .menu-panel,
+            .modal-overlay,
+            .modal-content,
+            .add-mask,
+            .add-panel {
                 transition: none !important;
             }
             .sprite,
