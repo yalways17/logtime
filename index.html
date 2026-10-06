@@ -2418,6 +2418,7 @@
             display: none;
             pointer-events: none;
         }
+        #layerForeNight { opacity: 0; }
         [data-theme="paper"] .layer-fore {
             display: block;
             --fore-zoom: 588%;
@@ -3393,6 +3394,16 @@
                     const w = scene.querySelector('.walker');
                     if (w) scene.insertBefore(fore, w); else scene.appendChild(fore);
                 }
+                // 前景带的"夜端副本"：和陆地一样，夜图叠在日图之上交叉淡入。
+                // 少这一步的话，夜里前景的棕榈叶还是白天的亮色（"前面几个叶片是亮色"）。
+                if (!document.getElementById('layerForeNight')) {
+                    const foreN = document.createElement('div');
+                    foreN.id = 'layerForeNight';
+                    foreN.className = 'layer-fore';
+                    const dayF = document.getElementById('layerFore');
+                    if (dayF && dayF.parentNode === scene) scene.insertBefore(foreN, dayF.nextSibling);
+                    else scene.appendChild(foreN);
+                }
                 if (!document.getElementById('sunGlow')) {
                     const glow = document.createElement('div');
                     glow.id = 'sunGlow';
@@ -3454,6 +3465,9 @@
                     const foreEl = document.getElementById('layerFore');
                     const fc = FORE_SRC[name];
                     if (foreEl) foreEl.style.backgroundImage = (fc && dayPack[fc.layer]) ? 'url(' + dayPack[fc.layer] + ')' : 'none';
+                    const foreNightEl = document.getElementById('layerForeNight');
+                    const nightForePack = (dn && ASSETS && ASSETS[dn.night.land]) ? ASSETS[dn.night.land] : null;
+                    if (foreNightEl) foreNightEl.style.backgroundImage = (fc && nightForePack && nightForePack[fc.layer]) ? 'url(' + nightForePack[fc.layer] + ')' : 'none';
                 }
                 // "夜端"素材 + 太阳：只有昼夜场景才有，其余场景清空并复位
                 const sunEl = document.getElementById('sunSprite');
@@ -3572,6 +3586,11 @@
                         el.style.visibility = mix < 0.002 ? 'hidden' : '';
                     }
                 }
+                const foreNight = document.getElementById('layerForeNight');
+                if (foreNight) {
+                    foreNight.style.opacity = mix.toFixed(3);
+                    foreNight.style.visibility = mix < 0.002 ? 'hidden' : '';
+                }
 
                 // ③ 云：和陆地同一条曲线交叉淡入（真正两版云）；如果这套场景的昼夜两端共用
                 //    同一张云，就退化成"压暗"，免得夜里飘白云
@@ -3672,7 +3691,12 @@
                 setLayerOffset('layerGround', STREET.offsets.ground);
                 const foreEl2 = document.getElementById('layerFore');
                 const fc2 = FORE_SRC[state.theme];
-                if (foreEl2 && fc2) foreEl2.style.backgroundPosition = (-STREET.offsets[fc2.off]) + 'px ' + fc2.y;
+                if (fc2) {
+                    const fpos = (-STREET.offsets[fc2.off]) + 'px ' + fc2.y;
+                    if (foreEl2) foreEl2.style.backgroundPosition = fpos;
+                    const foreN2 = document.getElementById('layerForeNight');
+                    if (foreN2) foreN2.style.backgroundPosition = fpos;
+                }
                 /* 夜端各层要和白天层**完全同相位**，否则交叉淡入时会出现两层错位的重影 */
                 setLayerOffset('layerNightClouds', STREET.offsets.clouds);
                 setLayerOffset('layerNightNear', STREET.offsets.near);
