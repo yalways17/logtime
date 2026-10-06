@@ -3156,7 +3156,7 @@
             const DAYNIGHT = {
                 paper: {
                     horizon: 0.50,                    // 地平线在"美术帧"里的高度比例（实测：海洋 far 层顶边 = 50%）
-                    arc: { cx: 0.5, half: 65, x0: 0.02, apexY: 0.015 },   // 顶点恒在 x=0.5（画面正中）
+                    arc: { x0: 0.02, x1: 0.98, apexY: 0.015, sink: 0.6 },   // 顶点恒在 x=0.5（画面正中）
                     setAt: 0.85,                      // 日落所在的感知进度
                     sunArt: 0.135,                    // 太阳直径 ÷ 美术帧高度（比原素材小一档，屏幕上约 60px）
                     starMax: 1.0,
@@ -3172,7 +3172,7 @@
                 },
                 chunky: {
                     horizon: 0.274,                   // 实测：森林 far 层顶边 = 27.4%（天空带最窄）
-                    arc: { cx: 0.5, half: 65, x0: 0.02, apexY: 0.015 },   // 顶点恒在 x=0.5（画面正中）
+                    arc: { x0: 0.02, x1: 0.98, apexY: 0.015, sink: 0.6 },   // 顶点恒在 x=0.5（画面正中）
                     setAt: 0.85,
                     sunArt: 0.097,
                     starMax: 1.0,
@@ -3186,7 +3186,7 @@
                 },
                 flatnight: {
                     horizon: 0.412,                   // 实测：沙漠 far 层顶边 = 41.2%
-                    arc: { cx: 0.5, half: 65, x0: 0.02, apexY: 0.015 },   // 顶点恒在 x=0.5（画面正中）
+                    arc: { x0: 0.02, x1: 0.98, apexY: 0.015, sink: 0.6 },   // 顶点恒在 x=0.5（画面正中）
                     setAt: 0.85,
                     sunArt: 0.121,
                     starMax: 1.0,
@@ -3200,7 +3200,7 @@
                 },
                 glass: {
                     horizon: 0.365,                   // 实测：城市 far 层顶边 = 36.5%
-                    arc: { cx: 0.5, half: 65, x0: 0.02, apexY: 0.015 },   // 顶点恒在 x=0.5（画面正中）
+                    arc: { x0: 0.02, x1: 0.98, apexY: 0.015, sink: 0.6 },   // 顶点恒在 x=0.5（画面正中）
                     setAt: 0.85,
                     sunArt: 0.108,
                     starMax: 0.40,                    // 城市有光污染，星星更少更淡
@@ -3255,9 +3255,9 @@
                这样"太阳还在天上却已经全黑"就不会发生了。 */
             const DN_SUN_PHASE = 0.78;
             function skyPhaseAt(cfg, p) {
-                if (p <= cfg.setAt) return (Math.min(Math.max(p / cfg.setAt, 0), 1)) * DN_SUN_PHASE;
-                const k = Math.min(Math.max((p - cfg.setAt) / (1 - cfg.setAt), 0), 1);
-                return DN_SUN_PHASE + k * (1 - DN_SUN_PHASE);
+                /* 天色相位 = 感知进度本身（不再除以 setAt）：
+                   日落色卡在 P=0.78，与实际落日（P≈0.82）基本对齐；P=1 到夜色。 */
+                return Math.min(Math.max(p, 0), 1);
             }
 
             /* 陆地交叉淡入的窗口：必须让**陆地先黑下来**，否则会出现"天已黑、地还亮"。
@@ -3305,56 +3305,23 @@
                  · 两端 |x−0.5| = R·sin(half) = 0.60 > 0.5 + 太阳半径 → 两端都在画面外，
                    靠**离开画面**退场：不做渐隐，也不会"到地平线就垂直下坠"。
                  · 顶点 y = cy − R = 0.015，圆盘上沿刚好越出上框约 3%。 */
-            /* ===== 弧长参数化 =====
-               椭圆的几何速度在两端比顶点快 3.1 倍（端点主要纵向、顶点主要横向），
-               而三种模型的差异也是 3 倍量级 —— 不归一化的话模型签名会被几何盖掉，
-               表现就是"感受不到三种模型"。这里按**像素弧长**建表，
-               让每单位感知进度走过的屏幕弧长恒定 → 太阳速度直接正比于 P'(x)。
-               按竖屏比例 674/365 计（横屏下太阳露出很少，误差可接受）。 */
-            function sunArcTable(cfg) {
-                if (cfg._arc) return cfg._arc;
-                const A = cfg.arc;
-                const horizon = 0.16 + 0.84 * (cfg.horizon == null ? 0.5 : cfg.horizon);
-                const ph0 = (90 + A.half) * Math.PI / 180, span = 2 * A.half * Math.PI / 180;
-                const Rx = (A.cx - A.x0) / Math.abs(Math.cos(ph0));
-                const N = 240, vs = [], L = [];
-                let acc = 0, px = 0, py = 0;
-                for (let i = 0; i <= N; i++) {
-                    const v = i / N, ph = ph0 - span * v;
-                    const k = (1 - Math.sin(ph)) / (1 - Math.sin(ph0));
-                    const x = (A.cx + Rx * Math.cos(ph)) * 365;
-                    const y = (A.apexY + (horizon - A.apexY) * k) * 674;
-                    if (i) acc += Math.sqrt((x - px) * (x - px) + (y - py) * (y - py));
-                    px = x; py = y; vs.push(v); L.push(acc);
-                }
-                cfg._arc = { vs: vs, L: L, total: acc };
-                return cfg._arc;
-            }
-            function sunArcInv(cfg, s) {          /* s: 0~1 弧长占比 → 椭圆参数 v */
-                const T = sunArcTable(cfg), L = T.L, vs = T.vs;
-                const target = Math.min(Math.max(s, 0), 1) * T.total;
-                let lo = 0, hi = L.length - 1;
-                while (lo < hi - 1) { const mid = (lo + hi) >> 1; if (L[mid] < target) lo = mid; else hi = mid; }
-                const d = (L[hi] - L[lo]) || 1;
-                return vs[lo] + (vs[hi] - vs[lo]) * ((target - L[lo]) / d);
-            }
+            /* 太阳轨迹 = **模型映射本身**
+               x = x0 + (x1−x0)·P          横向线性跟随感知进度 P(x)：
+                                           P=0.5 时太阳正好在画面横向正中（顶点）。
+                                           横向速度恒定 → 直接正比于 P'(x)，
+                                           三种模型（启程/抵达/恒行）的差异不会被几何起伏盖掉。
+               y = apexY + (地平线−apexY)·cos²(πP)·(1+sink·P)
+                                           拱形，顶点在 P=0.5（与 x 的中点重合）；
+                                           末端乘 (1+sink·P) 越过地平线 —— 入夜之前太阳一定已经落下去。
+               返回场景比例（0~1），直接当 left/top 用。 */
             function sunPosAt(cfg, p) {
                 const A = cfg.arc;
-                const horizon = 0.16 + 0.84 * (cfg.horizon == null ? 0.5 : cfg.horizon);   // 地平线（场景比例）
-                const ph0 = (90 + A.half) * Math.PI / 180;                                 // 起点角度
-                const span = 2 * A.half * Math.PI / 180;                                   // 总扫过角度
-                const Rx = (A.cx - A.x0) / Math.abs(Math.cos(ph0));                        // 让起点 x 正好 = A.x0
-                const at = function (uu) {
-                    const ph = ph0 - span * uu;
-                    const k = (1 - Math.sin(ph)) / (1 - Math.sin(ph0));                    // 0 = 顶点, 1 = 地平线
-                    return { x: A.cx + Rx * Math.cos(ph), y: A.apexY + (horizon - A.apexY) * k };
-                };
-                const s = p / cfg.setAt;
-                if (s <= 1) return at(sunArcInv(cfg, s));   // 等弧长 → 速度 ∝ P'(x)                                                  // 日落后沿端点切线外推同一速度
-                const e = 0.04;
-                                                                          // 退出速度倍率：确保世界全暗之前太阳一定出画
-                const a = at(sunArcInv(cfg, 1 - e)), b = at(sunArcInv(cfg, 1)), k2 = (s - 1) / e;
-                return { x: b.x + (b.x - a.x) * k2, y: b.y + (b.y - a.y) * k2 };
+                const horizon = 0.16 + 0.84 * (cfg.horizon == null ? 0.5 : cfg.horizon);
+                const P = Math.min(Math.max(p, 0), 1);
+                const x = A.x0 + (A.x1 - A.x0) * P;
+                const c = Math.cos(Math.PI * P);
+                const y = A.apexY + (horizon - A.apexY) * c * c * (1 + A.sink * P);
+                return { x: x, y: y };
             }
 
             /* 建出"夜端"的 5 层（云 + 远/中/近/地面）+ 太阳元素 + 星空（只建一次；贴哪些图由 applyTheme 决定） */
