@@ -2705,7 +2705,7 @@
                 </div>
             </div>
 
-            <div class="modal-version">v2.1.1</div>
+            <div class="modal-version">v2.1.2</div>
 
             <div class="modal-close">
                 <button id="infoCloseBtn">关闭</button>
@@ -3155,7 +3155,7 @@
             const DAYNIGHT = {
                 paper: {
                     horizon: 0.50,                    // 地平线在"美术帧"里的高度比例（实测：海洋 far 层顶边 = 50%）
-                    arc: { cx: 0.5, cy: 0.9296, R: 0.9146, half: 41 },   // 顶点恒在 x=0.5（画面正中）
+                    arc: { cx: 0.5, half: 65, x0: 0.02, apexY: 0.015 },   // 顶点恒在 x=0.5（画面正中）
                     setAt: 0.85,                      // 日落所在的感知进度
                     sunArt: 0.135,                    // 太阳直径 ÷ 美术帧高度（比原素材小一档，屏幕上约 60px）
                     starMax: 1.0,
@@ -3171,7 +3171,7 @@
                 },
                 chunky: {
                     horizon: 0.274,                   // 实测：森林 far 层顶边 = 27.4%（天空带最窄）
-                    arc: { cx: 0.5, cy: 0.9296, R: 0.9146, half: 41 },   // 顶点恒在 x=0.5（画面正中）
+                    arc: { cx: 0.5, half: 65, x0: 0.02, apexY: 0.015 },   // 顶点恒在 x=0.5（画面正中）
                     setAt: 0.85,
                     sunArt: 0.097,
                     starMax: 1.0,
@@ -3185,7 +3185,7 @@
                 },
                 flatnight: {
                     horizon: 0.412,                   // 实测：沙漠 far 层顶边 = 41.2%
-                    arc: { cx: 0.5, cy: 0.9296, R: 0.9146, half: 41 },   // 顶点恒在 x=0.5（画面正中）
+                    arc: { cx: 0.5, half: 65, x0: 0.02, apexY: 0.015 },   // 顶点恒在 x=0.5（画面正中）
                     setAt: 0.85,
                     sunArt: 0.121,
                     starMax: 1.0,
@@ -3199,7 +3199,7 @@
                 },
                 glass: {
                     horizon: 0.365,                   // 实测：城市 far 层顶边 = 36.5%
-                    arc: { cx: 0.5, cy: 0.9296, R: 0.9146, half: 41 },   // 顶点恒在 x=0.5（画面正中）
+                    arc: { cx: 0.5, half: 65, x0: 0.02, apexY: 0.015 },   // 顶点恒在 x=0.5（画面正中）
                     setAt: 0.85,
                     sunArt: 0.108,
                     starMax: 0.40,                    // 城市有光污染，星星更少更淡
@@ -3305,12 +3305,20 @@
                  · 顶点 y = cy − R = 0.015，圆盘上沿刚好越出上框约 3%。 */
             function sunPosAt(cfg, p) {
                 const A = cfg.arc;
-                const u = Math.min(Math.max(p / cfg.setAt, 0), 1);
-                const ph = (90 + A.half - 2 * A.half * u) * Math.PI / 180;
-                return {
-                    x: A.cx + A.R * Math.cos(ph),
-                    y: A.cy - A.R * Math.sin(ph),
+                const horizon = 0.16 + 0.84 * (cfg.horizon == null ? 0.5 : cfg.horizon);   // 地平线（场景比例）
+                const ph0 = (90 + A.half) * Math.PI / 180;                                 // 起点角度
+                const span = 2 * A.half * Math.PI / 180;                                   // 总扫过角度
+                const Rx = (A.cx - A.x0) / Math.abs(Math.cos(ph0));                        // 让起点 x 正好 = A.x0
+                const at = function (uu) {
+                    const ph = ph0 - span * uu;
+                    const k = (1 - Math.sin(ph)) / (1 - Math.sin(ph0));                    // 0 = 顶点, 1 = 地平线
+                    return { x: A.cx + Rx * Math.cos(ph), y: A.apexY + (horizon - A.apexY) * k };
                 };
+                const u = p / cfg.setAt;
+                if (u <= 1) return at(u);                                                  // 日落后沿端点切线外推同一速度
+                const e = 0.04;
+                const a = at(1 - e), b = at(1), k2 = (u - 1) / e;
+                return { x: b.x + (b.x - a.x) * k2, y: b.y + (b.y - a.y) * k2 };
             }
 
             /* 建出"夜端"的 5 层（云 + 远/中/近/地面）+ 太阳元素 + 星空（只建一次；贴哪些图由 applyTheme 决定） */
@@ -3637,7 +3645,7 @@
                         glowEl.style.height = 'calc(var(--art-scale) * ' + (cfg.sunArt * (192 / 184) * 250).toFixed(1) + '%)';
                         // 光晕比太阳大得多：太阳已经出画（x<0 或 x>1）时若还留着，
                         // 画面里就会有一团没来源的光。按太阳在画内的程度线性收掉。
-                        const sunVis = Math.min(Math.max((0.10 - Math.max(0 - q.x, q.x - 1)) / 0.10, 0), 1);
+                        const sunVis = Math.min(Math.max((0.05 - Math.max(0 - q.x, q.x - 1)) / 0.05, 0), 1);
                         glowEl.style.opacity = ((0.35 + (1 - hh) * 0.55) * sunVis).toFixed(3);
                     }
                     // 不做渐隐：太阳靠**几何**退场 —— tail 让它先沉到地平线以下（被陆地挡），
