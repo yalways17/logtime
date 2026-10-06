@@ -692,6 +692,14 @@
         /* 停顿时所有载具动画静止 */
         .ride.stopped, .ride.stopped * { animation: none !important; }
 
+        /* 停住时（暂停 / 完成 / 空闲）让角色停在**固定姿态**上，而不是随机某一帧。
+           四张条带的第 1 帧都是中性姿态：船桨前伸 / 站定 / 骆驼四腿着地 / 飞机平飞。 */
+        .sprite.stopped .sprite-sheet,
+        .ride.stopped .ride-sheet {
+            animation: none !important;
+            background-position: 0 0 !important;
+        }
+
         /* ---- 海洋 · 人坐小船（AI 精灵图 · 6 帧划桨循环） ----
            条带是 6 帧 × 149×106；每帧里船底距下沿 26px（给桨叶留的位置），
            所以盒子比船体略大、并向下多露出一截，船才会坐在该坐的位置上。
