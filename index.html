@@ -3164,7 +3164,7 @@
             const DAYNIGHT = {
                 paper: {
                     horizon: 0.50,                    // 地平线在"美术帧"里的高度比例（实测：海洋 far 层顶边 = 50%）
-                    arc: { x0: 0.02, x1: 0.98, apexY: 0.015, sink: 0.6 },   // 顶点恒在 x=0.5（画面正中）
+                    arc: { x0: 0.02, x1: 0.98, apexY: 0.015, sag: 0.40, sink: 1.2 },   // 顶点恒在 x=0.5（画面正中）
                     setAt: 0.85,                      // 日落所在的感知进度
                     sunArt: 0.135,                    // 太阳直径 ÷ 美术帧高度（比原素材小一档，屏幕上约 60px）
                     starMax: 1.0,
@@ -3180,7 +3180,7 @@
                 },
                 chunky: {
                     horizon: 0.274,                   // 实测：森林 far 层顶边 = 27.4%（天空带最窄）
-                    arc: { x0: 0.02, x1: 0.98, apexY: 0.015, sink: 0.6 },   // 顶点恒在 x=0.5（画面正中）
+                    arc: { x0: 0.02, x1: 0.98, apexY: 0.015, sag: 0.40, sink: 1.2 },   // 顶点恒在 x=0.5（画面正中）
                     setAt: 0.85,
                     sunArt: 0.097,
                     starMax: 1.0,
@@ -3194,7 +3194,7 @@
                 },
                 flatnight: {
                     horizon: 0.412,                   // 实测：沙漠 far 层顶边 = 41.2%
-                    arc: { x0: 0.02, x1: 0.98, apexY: 0.015, sink: 0.6 },   // 顶点恒在 x=0.5（画面正中）
+                    arc: { x0: 0.02, x1: 0.98, apexY: 0.015, sag: 0.40, sink: 1.2 },   // 顶点恒在 x=0.5（画面正中）
                     setAt: 0.85,
                     sunArt: 0.121,
                     starMax: 1.0,
@@ -3208,7 +3208,7 @@
                 },
                 glass: {
                     horizon: 0.365,                   // 实测：城市 far 层顶边 = 36.5%
-                    arc: { x0: 0.02, x1: 0.98, apexY: 0.015, sink: 0.6 },   // 顶点恒在 x=0.5（画面正中）
+                    arc: { x0: 0.02, x1: 0.98, apexY: 0.015, sag: 0.40, sink: 1.2 },   // 顶点恒在 x=0.5（画面正中）
                     setAt: 0.85,
                     sunArt: 0.108,
                     starMax: 0.40,                    // 城市有光污染，星星更少更淡
@@ -3326,10 +3326,16 @@
                 const A = cfg.arc;
                 const horizon = 0.16 + 0.84 * (cfg.horizon == null ? 0.5 : cfg.horizon);
                 const P = Math.min(Math.max(p, 0), 1);
-                const x = A.x0 + (A.x1 - A.x0) * P;
-                const c = Math.cos(Math.PI * P);
-                const y = A.apexY + (horizon - A.apexY) * c * c * (1 + A.sink * P);
-                return { x: x, y: y };
+                /* 抛物线弧：曲率恒定 → 切线角单调平滑变化，没有"平顶 + 陡落"。
+                   sag 取可用天空的 40%：坡角从约 60° 平滑收到 0°，全程不会出现垂直段。
+                   横向仍是线性 → P=0.5 时太阳恰在画面横向正中（顶点）。 */
+                const sag = (horizon - A.apexY) * A.sag;
+                const apex = Math.max(horizon - sag, A.apexY);
+                const u = 2 * P - 1;
+                return {
+                    x: A.x0 + (A.x1 - A.x0) * P,
+                    y: apex + sag * u * u * (1 + A.sink * P),
+                };
             }
 
             /* 建出"夜端"的 5 层（云 + 远/中/近/地面）+ 太阳元素 + 星空（只建一次；贴哪些图由 applyTheme 决定） */
@@ -3587,7 +3593,7 @@
 
                 // ② 陆地交叉淡入：窗口和天空的变暗对齐（陆地必须先黑下来）
                 // 陆地/载具/人物的压暗窗口：放在太阳将要离场之后（s 0.72→0.98）
-                const mix = smooth01((phase - 0.72) / 0.26);
+                const mix = smooth01((phase - 0.80) / 0.20);
                 for (const k in NIGHT_LAYER_IDS) {
                     const el = document.getElementById(NIGHT_LAYER_IDS[k]);
                     if (el) {
