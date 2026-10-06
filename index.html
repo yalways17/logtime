@@ -2706,7 +2706,7 @@
                 </div>
             </div>
 
-            <div class="modal-version">v2.1.2</div>
+            <div class="modal-version">v2.1.3</div>
 
             <div class="modal-close">
                 <button id="infoCloseBtn">关闭</button>
@@ -3285,7 +3285,8 @@
                 const K = cfg.skyKeys;
                 for (let i = 0; i < K.length - 1; i++) {
                     if (t <= K[i + 1].at) {
-                        const k = smooth01((t - K[i].at) / (K[i + 1].at - K[i].at));
+                        // 线性插值：smoothstep 在中段会加速，导致天空比太阳更早变暗
+                        const k = Math.min(Math.max((t - K[i].at) / (K[i + 1].at - K[i].at), 0), 1);
                         return [
                             lerpHex(K[i].c[0], K[i + 1].c[0], k),
                             lerpHex(K[i].c[1], K[i + 1].c[1], k),
@@ -3318,7 +3319,8 @@
                 const u = p / cfg.setAt;
                 if (u <= 1) return at(u);                                                  // 日落后沿端点切线外推同一速度
                 const e = 0.04;
-                const a = at(1 - e), b = at(1), k2 = (u - 1) / e;
+                const EXIT = 4;                                                          // 退出速度倍率：确保世界全暗之前太阳一定出画
+                const a = at(1 - e), b = at(1), k2 = ((u - 1) / e) * EXIT;
                 return { x: b.x + (b.x - a.x) * k2, y: b.y + (b.y - a.y) * k2 };
             }
 
